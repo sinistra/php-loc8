@@ -1,0 +1,25 @@
+GET pfl/_search
+{
+  "from" : 0,
+  "size" : 30,
+  "query": {
+    "bool" : {
+      "must": {
+        "match": {
+          "alias_address": {
+            "query": "50 pitt", 
+            "operator": "and"
+          }
+        }
+      },
+      "filter": {
+        "match": {
+          "alias_type": {
+            "query": "1", 
+            "operator": "and"
+          }
+        }
+      }
+    }
+  }
+}

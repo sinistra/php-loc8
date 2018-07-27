@@ -1,0 +1,61 @@
+PUT pfl
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "autocomplete": {
+          "tokenizer": "autocomplete",
+          "filter": [
+            "lowercase"
+          ]
+        },
+        "autocomplete_search": {
+          "tokenizer": "standard"
+        }
+      },
+      "tokenizer": {
+        "autocomplete": {
+          "type": "edge_ngram",
+          "min_gram": 1,
+          "max_gram": 20,
+          "token_chars": [
+            "letter",
+            "digit"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "alias_address": {
+          "type": "text",
+          "analyzer": "autocomplete",
+          "search_analyzer": "autocomplete_search"
+        },
+        "official_nbn_address": {
+          "type": "text"
+        },
+        "base_hash": {
+          "type": "text"
+        },
+        "nbn_locid": {
+          "type": "text"
+        },
+        "mt_locid": {
+          "type": "text"
+        },
+        "gnaf_locid": {
+          "type": "text"
+        },
+        "geo_location": {
+          "type": "geo_point"
+        },
+        "alias_type": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
