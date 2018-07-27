@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="{{ app()->getLocale() }}">
 <head>
-    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="code.jquery.com/jquery-1.11.2.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
