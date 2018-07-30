@@ -4,13 +4,10 @@ PUT pfl
     "analysis": {
       "analyzer": {
         "autocomplete": {
-          "tokenizer": "autocomplete",
-          "filter": [
-            "whitespace"
-          ]
+          "tokenizer": "autocomplete"
         },
         "autocomplete_search": {
-          "tokenizer": "standard"
+          "tokenizer": "whitespace"
         }
       },
       "tokenizer": {
