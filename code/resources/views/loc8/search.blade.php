@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="{{ app()->getLocale() }}">
 <head>
-    <script src="code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
     <script type="text/javascript" src="{{ URL::asset('js/tree.jquery.js') }}"></script>
 
@@ -100,10 +100,14 @@
             padding: 12px 20px 12px 20px;
         }
 
-        #result_pane {
+        #results_pane {
             display: none;
             border: 0px white solid;
             padding: 12px 20px 12px 20px;
+        }
+
+        #results_area {
+            margin-left: 10px;
         }
 
         #at_address_pane {
@@ -136,6 +140,15 @@
 
         .pane_tree {
             padding: 7px 0px 0px 0px;
+        }
+
+        .results_h1 {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .results {
+            margin-left: 10px;
         }
 
         /* Always set the map height explicitly to define the size of the div
@@ -183,7 +196,7 @@
 <div id="main_wrapper">
     <div id="left_pane_wrapper" style="overflow: auto;">
         <div id="welcome_pane">
-            <p style="font-size: 14px; padding-bottom: 10px;">Welcome</p>
+            <p style="font-size: 15px; padding-bottom: 10px;">Welcome</p>
             <p>LOC-8 (pronounced locate) is here to help you match customer addresses to official (mostly NBN)
                 servicable locations. Simply start typing in the search bar above to see match suggestions.</p>
             <br>
@@ -194,21 +207,21 @@
             <br>
             <p>LOC-8 responsibly!</p>
         </div>
-        <div id="result_pane">
-            <p style="font-size: 14px;">Result Details</p>
-            <p>results overview will go here.</p>
+        <div id="results_pane">
+            <p style="font-size: 15px;">Search Results</p>
+            <div id="results_area"></div>
         </div>
         <div id="at_address_pane">
-            <p style="font-size: 14px;">At Found Address</p>
+            <p style="font-size: 15px;">At Found Address</p>
             <div id="address_tree" class="pane_tree"></div>
         </div>
         <div id="at_geo_pane">
-            <p style="font-size: 14px;">At Found Geo-Location</p>
+            <p style="font-size: 15px;">At Found Geo-Location</p>
             <p>results at this geo location (not necessarily with the same base address) will go here.</p>
             <div id="geo_location_tree" class="pane_tree"></div>
         </div>
         <div id="nearby_pane">
-            <p style="font-size: 14px;">Nearby Found Geo-Location</p>
+            <p style="font-size: 15px;">Nearby Found Geo-Location</p>
             <div id="nearby_tree" class="pane_tree"></div>
         </div>
     </div>
@@ -227,30 +240,17 @@
             $(".easy-autocomplete").width(dv_wth);
         });
 
+        // this is what gets done when the user hits the enter key
+        $('#suggest_input').keypress(function (e) {
+            if (e.which == 13) {
+                doSubmitThings('text');
+                $('#suggest_input').blur();
+            }
+        });
+
         // this is what gets done when the user hits search
-        $("#suggest_button").click(function () {
-            var value = $("#suggest_input").val();
-
-            var geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + value + "&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM";
-            $.get(geocode_url, function (data, status) {
-
-                //alert(found_addr+'\n'+found_geo.lat+', '+found_geo.lng);
-
-                $("#welcome_pane").css("display", "none");
-                $("#nearby_pane").css("display", "block");
-                //$("#at_address_pane").css("display", "block");
-                //$("#result_pane").css("display", "block");
-                //$("#at_geo_pane").css("display", "block");
-
-                var found_addr = data.results[0].formatted_address;
-                var found_geo = data.results[0].geometry.location;
-
-                updateFoundPin(found_geo.lat, found_geo.lng);
-                updateNearby(found_geo.lat, found_geo.lng);
-                //updateAtAddr();
-
-            });
-
+        $('#suggest_button').click(function () {
+            doSubmitThings('text');
         });
 
         $('#address_tree').tree({data: '', autoEscape: false});
@@ -270,7 +270,7 @@
             if ($('#aliass_chk').is(":checked")) {
                 search_type += "|aliass";
             }
-            uri_str = "loc8/qry/" + safeUrl(phrase) + "/10/" + search_type;
+            uri_str = "/loc8/qry/" + safeUrl(phrase) + "/10/" + search_type;
             console.log(uri_str);
             return uri_str;
         },
@@ -278,19 +278,15 @@
         list: {
             maxNumberOfElements: 10,
             onClickEvent: function () {
-
-                $("#welcome_pane").css("display", "none");
-                $("#nearby_pane").css("display", "block");
-                $("#at_address_pane").css("display", "block");
-                //$("#result_pane").css("display", "block");
-                //$("#at_geo_pane").css("display", "block");
-
+                // this is what gets done when the user selects an item from the autosuggest
                 geo_loc = $("#suggest_input").getSelectedItemData().geo;
-
-                updateFoundPin(geo_loc.lat, geo_loc.lon);
-                updateNearby(geo_loc.lat, geo_loc.lon);
+                loc_str = $("#suggest_input").getSelectedItemData().loc;
+                loc_str = loc_str.split('|')[0];
+                clearWelcome();
+                updateResults(loc_str, "NBN PFL Match");
                 updateAtAddr();
-
+                updateNearby(geo_loc.lat, geo_loc.lon);
+                updateFoundPin(geo_loc.lat, geo_loc.lon, 'txt_search');
             }
         }
     };
@@ -321,12 +317,15 @@
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 draggable: true,
+                optimized: false,
+                zIndex: 9999999,
                 icon: {
                     url: image1,
                     scaledSize: new google.maps.Size(32, 32),
                     anchor: new google.maps.Point(16, 32)
                 }
             });
+
         }
         else if (iconType == 2) {
             marker = new google.maps.Marker({
@@ -335,8 +334,8 @@
                 title: infoTxt,
                 icon: {
                     url: image2,
-                    scaledSize: new google.maps.Size(32, 32),
-                    anchor: new google.maps.Point(16, 32)
+                    scaledSize: new google.maps.Size(24, 24),
+                    anchor: new google.maps.Point(12, 24)
                 }
             });
         }
@@ -387,18 +386,43 @@
         return safe_str;
     }
 
-    function updateFoundPin(geoLat, geoLon) {
+    function updateFoundPin(geoLat, geoLon, searchType) {
 
         // put the pin on the pane and zoom in
         var foundLoc = new google.maps.LatLng(geoLat, geoLon);
         clearMarkers();
-        map.setZoom(5);
-        map.panTo(foundLoc); // using global map variable:
-        markers[0] = addMyMarker(geoLat, geoLon, "", 1);
-        setTimeout(function () {
-            smoothZoom(map, 19, map.getZoom())
-        }, 150);
 
+        if (searchType == 'pin_drag') {
+            map.panTo(foundLoc);
+        }
+        else {
+            map.setZoom(5);
+            map.panTo(foundLoc); // using global map variable:
+            setTimeout(function () {
+                smoothZoom(map, 19, map.getZoom())
+            }, 150);
+        }
+
+        markers[0] = addMyMarker(geoLat, geoLon, "", 1);
+
+        google.maps.event.addListener(markers[0], 'dragend', function () {
+            var dragPos = markers[0].getPosition();
+            var dragPos_txt = dragPos.lat() + ', ' + dragPos.lng();
+            console.log(dragPos_txt);
+            $('#suggest_input').val(dragPos_txt);
+            doSubmitThings('pin_drag');
+            $("#suggest_input").blur();
+        });
+    }
+
+    function updateResults(foundAddr, matchType) {
+
+        // update the result pane
+        foundAddr = foundAddr.replace(", ", ",<br>");
+        var res_area_html = "<p class='results_h1'>Found Address:</p><p class='results'>" + foundAddr + "</p>";
+        res_area_html += "<p class='results_h1'>Match Type:</p><p class='results'>" + matchType + "</p>"
+        $("#results_pane").css("display", "block");
+        $("#results_area").html(res_area_html);
     }
 
     function updateAtAddr() {
@@ -427,6 +451,7 @@
                 }
             });
             at_addr_data += ' ] } ]';
+            $("#at_address_pane").css("display", "block");
             $('#address_tree').tree('loadData', jQuery.parseJSON(at_addr_data));
 
         });
@@ -434,7 +459,7 @@
 
     function updateNearby(geoLat, geoLon) {
 
-        // update nearby pane
+        // update nearby pane and nearby pins
         var nearby_ajax_url = "/loc8/nearby_qry/" + geoLat + "/" + geoLon + "/50";
         console.log(nearby_ajax_url);
         var nearby_data = '';
@@ -447,13 +472,48 @@
                     nearby_data += ', ';
                 }
                 nearby_data += ' { "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
-                markers[key + 1] = addMyMarker(val.geo.lat, val.geo.lon, val.nbn_st_addr, 2);
+                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]';
+                markers[key + 1] = addMyMarker(val.geo.lat, val.geo.lon, title_str, 2);
 
             });
             nearby_data += ' ] } ]';
-            //console.log('nearby:'+nearby_data);
+            $("#nearby_pane").css("display", "block");
             $('#nearby_tree').tree('loadData', jQuery.parseJSON(nearby_data));
 
+        });
+    }
+
+    function clearWelcome() {
+
+        $("#welcome_pane").css("display", "none");
+    }
+
+    function clearAtAddr() {
+
+        $("#at_address_pane").css("display", "none");
+        $('#address_tree').tree('loadData', '');
+    }
+
+    function doSubmitThings(searchType) {
+        var value = $("#suggest_input").val();
+        var geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + value + "&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM";
+        $.get(geocode_url, function (data, status) {
+
+            var found_addr = data.results[0].formatted_address;
+            var found_geo = data.results[0].geometry.location;
+
+            clearWelcome();
+            updateResults(found_addr, "Google Match");
+            clearAtAddr();
+            updateNearby(found_geo.lat, found_geo.lng);
+
+            if (searchType == "pin_drag") {
+                var dragPos = markers[0].getPosition();
+                updateFoundPin(dragPos.lat(), dragPos.lng(), 'pin_drag');
+            }
+            else {
+                updateFoundPin(found_geo.lat, found_geo.lng, 'txt_search');
+            }
         });
     }
 
