@@ -114,6 +114,8 @@ Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_st
    	}
 
     header('Content-type: application/json');
+    header('Access-Control-Allow-Origin: *');
+
 	echo json_encode($found_array);
 
 });

@@ -109,6 +109,8 @@ Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_st
     }
 
     header('Content-type: application/json');
+    header('Access-Control-Allow_origin: *');
+
     echo json_encode($found_array);
 
 });
@@ -137,6 +139,8 @@ Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $re
     $found_array = array_merge($found_array_1, $found_array_2);
 
     header('Content-type: application/json');
+    header('Access-Control-Allow_origin: *');
+
     echo json_encode($found_array);
     //echo $result;
 
