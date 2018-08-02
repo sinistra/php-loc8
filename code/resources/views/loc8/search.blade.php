@@ -159,6 +159,50 @@
 
     </style>
 
+    <style>
+        .modal {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.1);
+            transition: visibility 0s linear 0.25s, opacity 0.25s 0s, transform 0.25s;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 1rem 1.5rem;
+            width: 24rem;
+            border-radius: 0.5rem;
+        }
+        .close-button {
+            float: right;
+            width: 1.5rem;
+            line-height: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            background-color: lightgray;
+        }
+        .close-button:hover {
+            background-color: darkgray;
+        }
+        .show-modal {
+            display: block;
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1.0);
+            transition: visibility 0s linear 0s, opacity 0.25s 0s, transform 0.25s;
+        }
+    </style>
+
 </head>
 <body>
 
@@ -210,6 +254,7 @@
         <div id="results_pane">
             <p style="font-size: 15px;">Search Results</p>
             <div id="results_area"></div>
+            <button class="trigger">Click here to trigger the modal!</button>
         </div>
         <div id="at_address_pane">
             <p style="font-size: 15px;">At Found Address</p>
@@ -229,6 +274,12 @@
         <div id="map"></div>
     </div>
 </div>
+<div class="modal">
+    <div class="modal-content">
+        <span class="close-button">×</span>
+        <h1>Hello, I am a modal!</h1>
+    </div>
+</div>
 <script>
     $(document).ready(function () {
 
@@ -243,8 +294,9 @@
         // this is what gets done when the user hits the enter key
         $('#suggest_input').keypress(function (e) {
             if (e.which == 13) {
-                doSubmitThings('text');
-                $('#suggest_input').blur();
+
+                loc_str = $("#suggest_input").getItemData(0).loc;
+                doSelectThings('scripted');
             }
         });
 
@@ -255,6 +307,26 @@
 
         $('#address_tree').tree({data: '', autoEscape: false});
         $('#nearby_tree').tree({data: '', autoEscape: false});
+
+        var modal = document.querySelector(".modal");
+        var trigger = document.querySelector(".trigger");
+        var closeButton = document.querySelector(".close-button");
+
+        function toggleModal() {
+            console.log("Showing Modal");
+            modal.classList.toggle("show-modal");
+        }
+
+        function windowOnClick(event) {
+            if (event.target === modal) {
+                toggleModal();
+            }
+        }
+
+        trigger.addEventListener("click", toggleModal);
+        closeButton.addEventListener("click", toggleModal);
+        window.addEventListener("click", windowOnClick);
+
 
     });
 
@@ -278,20 +350,14 @@
         list: {
             maxNumberOfElements: 10,
             onClickEvent: function () {
-                // this is what gets done when the user selects an item from the autosuggest
-                geo_loc = $("#suggest_input").getSelectedItemData().geo;
-                loc_str = $("#suggest_input").getSelectedItemData().loc;
-                loc_str = loc_str.split('|')[0];
-                clearWelcome();
-                updateResults(loc_str, "NBN PFL Match");
-                updateAtAddr();
-                updateNearby(geo_loc.lat, geo_loc.lon);
-                updateFoundPin(geo_loc.lat, geo_loc.lon, 'txt_search');
+                doSelectThings('clicked');
             }
         }
     };
 
     $("#suggest_input").easyAutocomplete(options);
+
+
 </script>
 <script>
     // google maps js
@@ -471,7 +537,7 @@
                 if (key != 0) {
                     nearby_data += ', ';
                 }
-                nearby_data += ' { "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
+                nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
                 var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]';
                 markers[key + 1] = addMyMarker(val.geo.lat, val.geo.lon, title_str, 2);
 
@@ -479,6 +545,44 @@
             nearby_data += ' ] } ]';
             $("#nearby_pane").css("display", "block");
             $('#nearby_tree').tree('loadData', jQuery.parseJSON(nearby_data));
+
+            $('#nearby_tree').on(
+                'tree.click',
+                function (event) {
+                    var node = event.node;
+                    $('#suggest_input').focus();
+                    //$('#suggest_input').val('');
+                    $('#suggest_input').val('3-5 webb').trigger("change");
+                    $("#suggest_input").trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );
+                    // $("#suggest_input").easyAutocomplete('search', 'demo-value');
+                    //$('#suggest_input').getItemData();
+                    // $("#suggest_input").trigger("change");
+                    // $("#suggest_input").easyAutocomplete(options);
+                    // $("#suggest_input").keypress('3');
+                    //$("#suggest_input").val('MT'+node.mt);
+                    //$(window).keypress(" ");
+                    //$(window).keypress("|");
+                    //$("#suggest_input").getItems();
+                    //$("#suggest_input").keypress();
+                    //$("#suggest_input").trigger("change");
+                    //$("#suggest_input").val('MT'+node.mt).trigger("change");
+                    //$('#suggest_input').focus();
+                    //loc_str = $("#suggest_input").getItemData(0).loc;
+                    //setTimeout(function(){
+                    //		loc_str = $("#suggest_input").getItemData(0).loc;
+                    //		alert(loc_str);
+                    //	$("#suggest_input").trigger("change");
+                    //}, 500);
+
+                    //simulateKeyPress("m");
+                    //simulateKeyPress("t");
+
+                    //alert(loc_str);
+                    //$("#suggest_input").val('MT'+node.mt).trigger("change");
+                    //setTimeout(function(){doSelectThings('scripted')}, 500);
+                    //doSelectThings('scripted');
+                }
+            );
 
         });
     }
@@ -495,6 +599,7 @@
     }
 
     function doSubmitThings(searchType) {
+
         var value = $("#suggest_input").val();
         var geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + value + "&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM";
         $.get(geocode_url, function (data, status) {
@@ -515,6 +620,28 @@
                 updateFoundPin(found_geo.lat, found_geo.lng, 'txt_search');
             }
         });
+    }
+
+    function doSelectThings(searchType) {
+
+        // this is what gets done when the user selects an item from the autosuggest
+        if (searchType == "scripted") {
+            geo_loc = $("#suggest_input").getItemData(0).geo;
+            loc_str = $("#suggest_input").getItemData(0).loc;
+            $("#suggest_input").val(loc_str).trigger("change");
+            $('#suggest_input').blur();
+        }
+        else {
+            geo_loc = $("#suggest_input").getSelectedItemData().geo;
+            loc_str = $("#suggest_input").getSelectedItemData().loc;
+        }
+
+        loc_str = loc_str.split('|')[0];
+        clearWelcome();
+        updateResults(loc_str, "NBN PFL Match");
+        updateAtAddr();
+        updateNearby(geo_loc.lat, geo_loc.lon);
+        updateFoundPin(geo_loc.lat, geo_loc.lon, 'txt_search');
     }
 
     //https://maps.googleapis.com/maps/api/geocode/json?address=1600+Amphitheatre+Parkway,+Mountain+View,+CA&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM

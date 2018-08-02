@@ -109,8 +109,6 @@ Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_st
     }
 
     header('Content-type: application/json');
-    header('Access-Control-Allow_origin: *');
-
     echo json_encode($found_array);
 
 });
@@ -139,8 +137,6 @@ Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $re
     $found_array = array_merge($found_array_1, $found_array_2);
 
     header('Content-type: application/json');
-    header('Access-Control-Allow_origin: *');
-
     echo json_encode($found_array);
     //echo $result;
 
@@ -171,7 +167,7 @@ Route::get('/loc8/nearby_qry/{lat}/{lon}/{ret_limit}', function ($lat, $lon, $re
         $subs_count_result = es_base_qry($hit->_source->base_hash, "1");
         $subs_count_json = json_decode($subs_count_result);
 
-        $found_array[] = ["nbn_st_addr" => get_st_address($base_addr_str), "nbn_suburb" => get_suburb($base_addr_str), "dist" => $dist, "count" => $subs_count_json->hits->total, "geo" => $hit->_source->geo_location];
+        $found_array[] = ["nbn_st_addr" => get_st_address($base_addr_str), "nbn_suburb" => get_suburb($base_addr_str), "dist" => $dist, "count" => $subs_count_json->hits->total, "geo" => $hit->_source->geo_location, "mt" => $hit->_source->mt_locid];
     }
 
     header('Content-type: application/json');
