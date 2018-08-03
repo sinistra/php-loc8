@@ -62,8 +62,19 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
         ->limit(10)
         ->get();
 
+    //return $locs;
     return view('loc8.list', compact('locs'));
 
+});
+
+Route::get('/locs/details/{id_num}', function ($id_num) {
+
+    $locs = DB::table('pfl_raw')
+        ->where('MT_LOCID', '=', $id_num)
+        ->limit(1)
+        ->get();
+
+    return $locs;
 });
 
 Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
@@ -130,7 +141,7 @@ Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $re
     $found_array_1[] = ["nbn_st_addr" => get_st_address($base_addr_str), "nbn_suburb" => get_suburb($base_addr_str)];
     foreach ($hits as $hit) {
         $nbn_addr = $hit->_source->official_nbn_address;
-        $found_array_2[] = ["nbn_sub_addr" => get_sub_address($nbn_addr), "nbn_loc" => $hit->_source->nbn_locid, "geo" => $hit->_source->geo_location];
+        $found_array_2[] = ["nbn_sub_addr" => get_sub_address($nbn_addr), "mt_locid" => $hit->_source->mt_locid, "geo" => $hit->_source->geo_location, "nbn_locid" => $hit->_source->nbn_locid, "gnaf_locid" => $hit->_source->gnaf_locid, "tech" => $hit->_source->tech, "rfs" => $hit->_source->rfs, "serv_class" => $hit->_source->serv_class];
     }
 
     asort($found_array_2);
@@ -263,6 +274,9 @@ function es_load_bulk($locs)
                 $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCID . '", ';
                 $curl_data .= '"mt_locid" : "' . $loc->MT_LOCID . '", ';
                 $curl_data .= '"gnaf_locid" : "' . $loc->GNAF_PERSISTENT_IDENTIFIER . '", ';
+                $curl_data .= '"serv_class" : "' . $loc->SERVICE_CLASS . '", ';
+                $curl_data .= '"tech" : "' . $loc->SERVICE_TYPE . '", ';
+                $curl_data .= '"rfs" : "' . $loc->READY_FOR_SERVICE_DATE . '", ';
                 $curl_data .= '"geo_location" : { "lat": "' . $loc->LATITUDE . '", "lon": "' . $loc->LONGITUDE . '" }, ';
                 $curl_data .= '"alias_type" : "' . $i . '"';
                 $curl_data .= ' }' . "\n";
