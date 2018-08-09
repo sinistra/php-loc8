@@ -20,7 +20,7 @@ Route::get('/', function () {
 
 Route::get('/loc8', function () {
 
-    return view('loc8.search', compact('locs'));
+    return view('loc8.search');
 
 });
 
@@ -39,7 +39,7 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
     if (strtolower($search_key) == 'mt') {
         $search_key = 'MT_LOCID';
     } elseif (strtolower($search_key) == 'nbn') {
-        $search_key = 'NBN_LOCID';
+        $search_key = 'NBN_LOCATION_IDENTIFIER';
     } elseif (strtolower($search_key) == 'addr') {
         $search_key = 'FORMATTED_ADDRESS_STRING';
     }
@@ -187,6 +187,12 @@ Route::get('/loc8/nearby_qry/{lat}/{lon}/{ret_limit}', function ($lat, $lon, $re
 
 });
 
+Route::get('/loc8/visualise', function () {
+
+    return view('loc8.visualise');
+
+});
+
 
 /*
 |--------------------------------------------------------------------------
@@ -231,7 +237,7 @@ function es_load_bulk($locs)
 
         //$base_hash = hexdec( substr(sha1(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15) );
         $base_hash = substr(md5(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15);
-        $search_addr_suffix = " | " . $loc->NBN_LOCID . " | L" . get_loc_num($loc->NBN_LOCID) . " | MT" . $loc->MT_LOCID;
+        $search_addr_suffix = " | " . $loc->NBN_LOCATION_IDENTIFIER . " | L" . get_loc_num($loc->NBN_LOCATION_IDENTIFIER) . " | MT" . $loc->MT_LOCID;
 
         $search_addr = array();
 
@@ -271,7 +277,7 @@ function es_load_bulk($locs)
                 $curl_data .= '"alias_address" : "' . addslashes($search_addr[$i]) . '", ';
                 $curl_data .= '"official_nbn_address" : "' . addslashes($loc->FORMATTED_ADDRESS_STRING) . '", ';
                 $curl_data .= '"base_hash" : "' . $base_hash . '", ';
-                $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCID . '", ';
+                $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCATION_IDENTIFIER . '", ';
                 $curl_data .= '"mt_locid" : "' . $loc->MT_LOCID . '", ';
                 $curl_data .= '"gnaf_locid" : "' . $loc->GNAF_PERSISTENT_IDENTIFIER . '", ';
                 $curl_data .= '"serv_class" : "' . $loc->SERVICE_CLASS . '", ';
@@ -341,6 +347,7 @@ function es_nearby_qry($lat, $lon, $res_limit)
     //$qry_data = '{ "from" : 0, "size" : 30, "query": { "bool" : { "must": { "match": { "alias_type": { "query": "1",  "operator": "and" } } }, "filter": { "geo_bounding_box": { "type": "indexed", "geo_location": { "top_left": { "lat":  -32.864098, "lon": 150.608544 }, "bottom_right": { "lat":  -34.300274, "lon": 151.609537 } } } } } }, "sort": [ { "_geo_distance": { "geo_location": { "lat":  -33.378395, "lon": 151.370702 }, "order": "asc", "unit": "km", "distance_type": "plane" } } ] }';
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_type": { "query": "1",  "operator": "and" } } }, "filter": { "geo_bounding_box": { "type": "indexed", "geo_location": { "top_left": { "lat":  ' . $tl_lat . ', "lon": ' . $tl_lon . ' }, "bottom_right": { "lat":  ' . $br_lat . ', "lon": ' . $br_lon . ' } } } } } }, "sort": [ { "_geo_distance": { "geo_location": { "lat":  ' . $lat . ', "lon": ' . $lon . ' }, "order": "asc", "unit": "km", "distance_type": "plane" } } ] }';
 
+//    var_dump($curl_url, $qry_data); die();
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 
