@@ -21,7 +21,6 @@ Route::get('/', function () {
 Route::get('/loc8', function () {
 
     return view('loc8.search');
-
 });
 
 Route::get('/locs/{id_num}', function ($id_num) {
@@ -37,9 +36,9 @@ Route::get('/locs/{id_num}', function ($id_num) {
 Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function ($search_key, $search_val, $query_type, $page_num) {
 
     if (strtolower($search_key) == 'mt') {
-        $search_key = 'MT_LOCID';
+        $search_key = 'UID';
     } elseif (strtolower($search_key) == 'nbn') {
-        $search_key = 'NBN_LOCATION_IDENTIFIER';
+        $search_key = 'NBN_LOCID';
     } elseif (strtolower($search_key) == 'addr') {
         $search_key = 'FORMATTED_ADDRESS_STRING';
     }
@@ -67,10 +66,11 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
 
 });
 
-Route::get('/locs/details/{id_num}', function ($id_num) {
+Route::get('/locs/details/{mt_locid}', function ($mt_locid) {
 
+    $id_num = get_loc_num($mt_locid, "MTL");
     $locs = DB::table('pfl_raw')
-        ->where('MT_LOCID', '=', $id_num)
+        ->where('UID', '=', $id_num)
         ->limit(1)
         ->get();
 
@@ -83,7 +83,7 @@ Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
     // once this is working the plan will be to optimise into a bulk load function
     // instead of one at a time.
 
-    $search_key = 'MT_LOCID';
+    $search_key = 'UID';
     $query_type = '>=';
     $load_qty = $load_to - $load_from + 1;
 
@@ -237,7 +237,8 @@ function es_load_bulk($locs)
 
         //$base_hash = hexdec( substr(sha1(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15) );
         $base_hash = substr(md5(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15);
-        $search_addr_suffix = " | " . $loc->NBN_LOCATION_IDENTIFIER . " | L" . get_loc_num($loc->NBN_LOCATION_IDENTIFIER) . " | MT" . $loc->MT_LOCID;
+        $mt_locid = "MTL" . sprintf("%'.012d", $loc->UID);
+        $search_addr_suffix = " | " . $loc->NBN_LOCID . " | L" . get_loc_num($loc->NBN_LOCID, "LOC") . " | " . $mt_locid;
 
         $search_addr = array();
 
@@ -267,9 +268,9 @@ function es_load_bulk($locs)
                 // ever be a single record for each base address
                 if (($i == 1) || ($i == 4)) {
                     $rec_id = $i . $base_hash;
-                } // for all other addresses base it off the MT_LOCID which itself is based on an auto-increment in mysql
+                } // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
                 else {
-                    $rec_id = $loc->MT_LOCID + ($i * 100000000);
+                    $rec_id = $loc->UID + ($i * 100000000000);
                 }
 
                 $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
@@ -277,8 +278,8 @@ function es_load_bulk($locs)
                 $curl_data .= '"alias_address" : "' . addslashes($search_addr[$i]) . '", ';
                 $curl_data .= '"official_nbn_address" : "' . addslashes($loc->FORMATTED_ADDRESS_STRING) . '", ';
                 $curl_data .= '"base_hash" : "' . $base_hash . '", ';
-                $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCATION_IDENTIFIER . '", ';
-                $curl_data .= '"mt_locid" : "' . $loc->MT_LOCID . '", ';
+                $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCID . '", ';
+                $curl_data .= '"mt_locid" : "' . $mt_locid . '", ';
                 $curl_data .= '"gnaf_locid" : "' . $loc->GNAF_PERSISTENT_IDENTIFIER . '", ';
                 $curl_data .= '"serv_class" : "' . $loc->SERVICE_CLASS . '", ';
                 $curl_data .= '"tech" : "' . $loc->SERVICE_TYPE . '", ';
@@ -286,15 +287,13 @@ function es_load_bulk($locs)
                 $curl_data .= '"geo_location" : { "lat": "' . $loc->LATITUDE . '", "lon": "' . $loc->LONGITUDE . '" }, ';
                 $curl_data .= '"alias_type" : "' . $i . '"';
                 $curl_data .= ' }' . "\n";
-                //echo "<br>cd= <br>" . $curl_data . "<br>";
-                //echo "<br>cr= <br>" . $curl_result . "<br>";
-
             }
         }
     }
 
+    //echo "<br>cd= <br>" . $curl_data . "<br>";
     $curl_result = hit_curl("POST", $curl_url, $curl_data);
-    //echo "<br>" . $curl_result . "<br>";
+    //echo "<br>cr= <br>" . $curl_result . "<br>";
     echo "  ...done";
 }
 
@@ -347,7 +346,6 @@ function es_nearby_qry($lat, $lon, $res_limit)
     //$qry_data = '{ "from" : 0, "size" : 30, "query": { "bool" : { "must": { "match": { "alias_type": { "query": "1",  "operator": "and" } } }, "filter": { "geo_bounding_box": { "type": "indexed", "geo_location": { "top_left": { "lat":  -32.864098, "lon": 150.608544 }, "bottom_right": { "lat":  -34.300274, "lon": 151.609537 } } } } } }, "sort": [ { "_geo_distance": { "geo_location": { "lat":  -33.378395, "lon": 151.370702 }, "order": "asc", "unit": "km", "distance_type": "plane" } } ] }';
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_type": { "query": "1",  "operator": "and" } } }, "filter": { "geo_bounding_box": { "type": "indexed", "geo_location": { "top_left": { "lat":  ' . $tl_lat . ', "lon": ' . $tl_lon . ' }, "bottom_right": { "lat":  ' . $br_lat . ', "lon": ' . $br_lon . ' } } } } } }, "sort": [ { "_geo_distance": { "geo_location": { "lat":  ' . $lat . ', "lon": ' . $lon . ' }, "order": "asc", "unit": "km", "distance_type": "plane" } } ] }';
 
-//    var_dump($curl_url, $qry_data); die();
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 
@@ -428,13 +426,15 @@ function get_suburb($addr_str)
     return $ret_str;
 }
 
-function get_loc_num($loc_str)
+function get_loc_num($loc_str, $loc_prefix)
 {
     //get the number part of a loc id with leading zero's stripped
+    // prefix  = LOC or MTL
     $base_loc = "";
-    if (strstr($loc_str, "LOC") != false) {
+    if (strstr($loc_str, $loc_prefix) != false) {
         $base_loc = substr($loc_str, 3);
-        $base_loc += 0;
+        //$base_loc += 1;
+        $base_loc = (int)$base_loc;
     }
     return $base_loc;
 }
