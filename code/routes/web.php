@@ -263,7 +263,7 @@ function es_load_bulk($locs)
             if (isset($search_addr[$i])) {
 
                 // we want unique base addresses, so for them create the id based on a hash of the base address string
-                // baseically, if the base-hash is the id for the base addresses, when other LOCs weith the same base
+                // basically, if the base-hash is the id for the base addresses, when other LOCs weith the same base
                 // address get loaded, they will simply over-write the previous record with that id, so there will only
                 // ever be a single record for each base address
                 if (($i == 1) || ($i == 4)) {
