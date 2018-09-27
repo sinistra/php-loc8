@@ -12,10 +12,7 @@
 */
 
 Route::get('/', function () {
-
-    $tasks = DB::table('tasks')->latest()->get();
-
-    return view('loc8.search', compact('locs'));
+    return view('loc8.search');
 });
 
 Route::get('/loc8', function () {
@@ -38,9 +35,9 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
     if (strtolower($search_key) == 'mt') {
         $search_key = 'UID';
     } elseif (strtolower($search_key) == 'nbn') {
-        $search_key = 'NBN_LOCID';
+        $search_key = 'nbn_locid';
     } elseif (strtolower($search_key) == 'addr') {
-        $search_key = 'FORMATTED_ADDRESS_STRING';
+        $search_key = 'formatted_address_string';
     }
 
     if (strtolower($query_type) == 'is') {
@@ -235,26 +232,26 @@ function es_load_bulk($locs)
 
     foreach ($locs as $loc) {
 
-        //$base_hash = hexdec( substr(sha1(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15) );
-        $base_hash = substr(md5(get_base_address($loc->FORMATTED_ADDRESS_STRING)), 0, 15);
+        //$base_hash = hexdec( substr(sha1(get_base_address($loc->formatted_address_string)), 0, 15) );
+        $base_hash = substr(md5(get_base_address($loc->formatted_address_string)), 0, 15);
         $mt_locid = "MTL" . sprintf("%'.012d", $loc->UID);
-        $search_addr_suffix = " | " . $loc->NBN_LOCID . " | L" . get_loc_num($loc->NBN_LOCID, "LOC") . " | " . $mt_locid;
+        $search_addr_suffix = " | " . $loc->nbn_locid . " | L" . get_loc_num($loc->nbn_locid, "LOC") . " | " . $mt_locid;
 
         $search_addr = array();
 
         // alias type 1 = base address with other bits
-        $search_addr[1] = get_base_address($loc->FORMATTED_ADDRESS_STRING) . $search_addr_suffix;
+        $search_addr[1] = get_base_address($loc->formatted_address_string) . $search_addr_suffix;
 
         // alias type 2 = original formatted address from nbn with other bits
-        $search_addr[2] = $loc->FORMATTED_ADDRESS_STRING . $search_addr_suffix;
+        $search_addr[2] = $loc->formatted_address_string . $search_addr_suffix;
 
         // alias type 3 = unit address as eg '4/'' instead of 'unit 4,' plus base address with other bits
-        if ($loc->UNIT_NUMBER != "") {
-            $search_addr[3] = $loc->UNIT_NUMBER . "/" . get_base_address($loc->FORMATTED_ADDRESS_STRING) . $search_addr_suffix;
+        if ($loc->unit_number != "") {
+            $search_addr[3] = $loc->unit_number . "/" . get_base_address($loc->formatted_address_string) . $search_addr_suffix;
         }
 
         // alias type 4 = base address with underscores so that you can force it to find st-num and st-type and.. also with other bits
-        $search_addr[4] = get_snake_address($loc->FORMATTED_ADDRESS_STRING) . $search_addr_suffix;
+        $search_addr[4] = get_snake_address($loc->formatted_address_string) . $search_addr_suffix;
 
         for ($i = 1; $i <= 4; $i++) {
 
@@ -276,15 +273,15 @@ function es_load_bulk($locs)
                 $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
                 $curl_data .= '{ ';
                 $curl_data .= '"alias_address" : "' . addslashes($search_addr[$i]) . '", ';
-                $curl_data .= '"official_nbn_address" : "' . addslashes($loc->FORMATTED_ADDRESS_STRING) . '", ';
+                $curl_data .= '"official_nbn_address" : "' . addslashes($loc->formatted_address_string) . '", ';
                 $curl_data .= '"base_hash" : "' . $base_hash . '", ';
-                $curl_data .= '"nbn_locid" : "' . $loc->NBN_LOCID . '", ';
+                $curl_data .= '"nbn_locid" : "' . $loc->nbn_locid . '", ';
                 $curl_data .= '"mt_locid" : "' . $mt_locid . '", ';
-                $curl_data .= '"gnaf_locid" : "' . $loc->GNAF_PERSISTENT_IDENTIFIER . '", ';
-                $curl_data .= '"serv_class" : "' . $loc->SERVICE_CLASS . '", ';
-                $curl_data .= '"tech" : "' . $loc->SERVICE_TYPE . '", ';
-                $curl_data .= '"rfs" : "' . $loc->READY_FOR_SERVICE_DATE . '", ';
-                $curl_data .= '"geo_location" : { "lat": "' . $loc->LATITUDE . '", "lon": "' . $loc->LONGITUDE . '" }, ';
+                $curl_data .= '"gnaf_locid" : "' . $loc->gnaf_persistent_identifier . '", ';
+                $curl_data .= '"serv_class" : "' . $loc->service_class . '", ';
+                $curl_data .= '"tech" : "' . $loc->service_type . '", ';
+                $curl_data .= '"rfs" : "' . $loc->ready_for_service_date . '", ';
+                $curl_data .= '"geo_location" : { "lat": "' . $loc->latitude . '", "lon": "' . $loc->longitude . '" }, ';
                 $curl_data .= '"alias_type" : "' . $i . '"';
                 $curl_data .= ' }' . "\n";
             }
