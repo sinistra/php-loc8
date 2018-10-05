@@ -74,6 +74,13 @@ Route::get('/locs/details/{mt_locid}', function ($mt_locid) {
     return $locs;
 });
 
+Route::get('/debug/', function () {
+
+    echo env('DB_CONNECTION');
+});
+
+
+
 Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
 
     // this grabs loc IDs from mySQL in a batch and puts them into elastic one at a time
