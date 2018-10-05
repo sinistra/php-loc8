@@ -514,13 +514,13 @@
                         console.log(base_ajax_url);
                         var at_addr_data = '';
                         $.get(base_ajax_url, function (data, status) {
-                            var addr_detail = '<span style="font-size: 14px;">' + data[0].FORMATTED_ADDRESS_STRING + '</span><br><br>';
+                            var addr_detail = '<span style="font-size: 14px;">' + data[0].formatted_address_string + '</span><br><br>';
                             addr_detail += '<div style="font-size: 11px;">';
-                            addr_detail += '<span>LOC: ' + data[0].NBN_LOCID + '</span><br>';
-                            addr_detail += '<span>GNAF: ' + data[0].GNAF_PERSISTENT_IDENTIFIER + '</span><br>';
-                            addr_detail += '<span>TECH: ' + data[0].SERVICE_TYPE + '</span><br>';
-                            addr_detail += '<span>RFS: ' + data[0].READY_FOR_SERVICE_DATE + '</span><br>';
-                            addr_detail += '<span>SERV-CLASS: ' + data[0].SERVICE_CLASS + '</span><br>';
+                            addr_detail += '<span>LOC: ' + data[0].nbn_locid + '</span><br>';
+                            addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
+                            addr_detail += '<span>TECH: ' + data[0].service_type + '</span><br>';
+                            addr_detail += '<span>RFS: ' + data[0].ready_for_service_date + '</span><br>';
+                            addr_detail += '<span>SERV-CLASS: ' + data[0].service_class + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
                             $.each(data[0], function (key, val) {
