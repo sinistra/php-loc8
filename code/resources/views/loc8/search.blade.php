@@ -341,10 +341,11 @@
         });
     }
 
-    function addPin(myLat, myLng, infoTxt, iconType) {
+    function addPin(myLat, myLng, infoTxt, serv_class, tech, iconType) {
 
         var image1 = '../images/marker_black_filled.svg';
-        var image2 = '../images/marker_black_hollow.svg';
+        //var image2 = '../images/marker_black_hollow.svg';
+        var image2 = '../images/marker_' + tech + '_filled.svg';
 
         if (iconType == 1) { // main solid found marker
             marker = new google.maps.Marker({
@@ -437,7 +438,7 @@
             map.panTo(foundLoc);
         }
 
-        found_pin[0] = addPin(geoLat, geoLon, '', 1);
+        found_pin[0] = addPin(geoLat, geoLon, '', '', '', 1);
 
         google.maps.event.addListener(found_pin[0], 'dragend', function () {
             var dragPos = found_pin[0].getPosition();
@@ -470,29 +471,20 @@
 
             $.each(data, function (key, val) {
                 if (key == 0) {
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += '[ { "name": "' + val.nbn_st_addr + ',<br>' + val.nbn_suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "001", "children": [';
-                    }
-                    else {
-                        at_addr_data += '[ { "name": "' + val.nbn_st_addr + ',<br>' + val.nbn_suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "-' + data[1].mt_locid + '", "children": [';
-                    }
+                    at_addr_data += '[ { "name": "' + val.st_addr + ',<br>' + val.suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "001", "children": [';
                 }
                 else {
                     if (key != 1) {
                         at_addr_data += ', ';
                     }
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += ' { "name": "' + orDash(val.nbn_sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
-                    }
-                    at_addr_data += '{ "name": "MT: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "LOC: ' + orDash(val.nbn_locid) + '", "id": "2' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "TECH: ' + orDash(val.tech) + '", "id": "4' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "RFS: ' + orDash(val.rfs) + '", "id": "5' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "SERV-CLASS: ' + orDash(val.serv_class) + '", "id": "6' + val.mt_locid + '" }';
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += '] } ';
-                    }
+                    at_addr_data += ' { "name": "' + orDash(val.sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
+                    at_addr_data += '{ "name": "MT-LOC: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
+                    at_addr_data += '{ "name": "CARRIER-LOC: ' + orDash(val.carrier_locid) + '", "id": "2' + val.mt_locid + '" }, ';
+                    at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" } ';
+                    //at_addr_data += '{ "name": "TECH: '+ orDash(val.tech) +'", "id": "4' + val.mt_locid + '" }, ';
+                    //at_addr_data += '{ "name": "RFS: '+ orDash(val.rfs) +'", "id": "5' + val.mt_locid + '" }, ';
+                    //at_addr_data += '{ "name": "SERV-CLASS: '+ orDash(val.serv_class) +'", "id": "6' + val.mt_locid + '" }';
+                    at_addr_data += '] } ';
                 }
             });
             at_addr_data += ' ] } ]';
@@ -514,13 +506,11 @@
                         console.log(base_ajax_url);
                         var at_addr_data = '';
                         $.get(base_ajax_url, function (data, status) {
-                            var addr_detail = '<span style="font-size: 14px;">' + data[0].formatted_address_string + '</span><br><br>';
+                            var addr_detail = '<span style="font-size: 14px;">' + data[0].FORMATTED_ADDRESS_STRING + '</span><br><br>';
                             addr_detail += '<div style="font-size: 11px;">';
-                            addr_detail += '<span>LOC: ' + data[0].nbn_locid + '</span><br>';
-                            addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
-                            addr_detail += '<span>TECH: ' + data[0].service_type + '</span><br>';
-                            addr_detail += '<span>RFS: ' + data[0].ready_for_service_date + '</span><br>';
-                            addr_detail += '<span>SERV-CLASS: ' + data[0].service_class + '</span><br>';
+                            addr_detail += '<span>MT-LOC: ' + data[0].UID + '</span><br>';
+                            addr_detail += '<span>CARRIER-LOC: ' + data[0].NBN_LOCID + '</span><br>';
+                            addr_detail += '<span>GNAF: ' + data[0].GNAF_PERSISTENT_IDENTIFIER + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
                             $.each(data[0], function (key, val) {
@@ -554,8 +544,8 @@
                     nearby_data += ', ';
                 }
                 nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
-                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]';
-                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, 2);
+                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm : ' + val.tech + ']';
+                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, val.serv_class, val.tech, 2);
 
             });
             nearby_data += ' ] } ]';
@@ -569,6 +559,7 @@
                 function (event) {
                     console.log('tree_clicked');
                     var node = event.node;
+                    console.log(node.mt);
                     $('#suggest_input').val(node.mt).trigger('change');
                     $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
                     setTimeout(function () {
@@ -594,7 +585,7 @@
 
         var value = $('#suggest_input').val();
         $('#suggest_input').blur();
-        var geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + value + '&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM';
+        var geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + value + '&region=au&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM';
         console.log(geocode_url);
         $.get(geocode_url, function (data, status) {
 
@@ -644,9 +635,10 @@
             zoom_type = '';
         }
 
+        console.log(loc_str);
         loc_str = loc_str.split('|')[0];
         clearWelcome();
-        updateResults(loc_str, 'NBN PFL Match');
+        updateResults(loc_str, 'LOC8 DB Match');
         updateAtAddr();
         updateNearby(geo_loc.lat, geo_loc.lon);
         updateFoundPin(geo_loc.lat, geo_loc.lon, zoom_type);
