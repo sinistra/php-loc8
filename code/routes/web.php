@@ -11,8 +11,6 @@
 |
 */
 
-//$elasticHost = "elasticsearch:9200";
-
 Route::get('/', function () {
 
     return view('loc8.search');
@@ -25,7 +23,7 @@ Route::get('/loc8', function () {
 
 Route::get('/locs/{id_num}', function ($id_num) {
 
-    $locs = DB::table('pfl')
+    $locs = DB::table('pfl_raw')
         ->where('nbn_location_identifier', '=', $id_num)
         ->get();
 
@@ -56,7 +54,7 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
         $search_val = '%' . $search_val;
     }
 
-    $locs = DB::table('pfl_lean')
+    $locs = DB::table('pfl')
         ->where($search_key, $query_type, $search_val)
         ->limit(10)
         ->get();
@@ -111,7 +109,6 @@ Route::get('/loc8/bulk', function () {
 Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str) {
 
     // this takes a carrier name and search string and returns the best addr match it can
-
     $match_obj = null; // the object that comes back from es when a match in es is found
     $google_arr = [];
     $return_arr = array(); //the end object that is returned from the api
@@ -171,7 +168,7 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $match_obj->carrier_locid; // overwrite this if there is a sub-address match
         $return_arr["results"]["matched_sub_addr"]["mt_id"] = $match_obj->mt_locid; // overwrite this if there is a sub-address match
 
-        $token_match_obj = find_sub_addresses($match_obj->base_hash); // we now need to get all sub-addresses no matter what for the return data
+        $token_match_obj = find_sub_addresses($match_obj); // we now need to get all sub-addresses no matter what for the return data
 
         if ($match_type != "id") {
             // now need to find user tokens based on the users base address
@@ -186,6 +183,8 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         $return_arr["results"]["matched_sub_addr"]["match_score"] = 0;
         $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $token_match_obj[0]->_source->carrier_locid;
         $return_arr["results"]["matched_sub_addr"]["mt_id"] = $token_match_obj[0]->_source->mt_locid;
+        $return_arr["results"]["matched_sub_addr"]["serv_class"] = $token_match_obj[0]->_source->serv_class;
+        $return_arr["results"]["matched_sub_addr"]["tech"] = $token_match_obj[0]->_source->tech;
         $return_arr["results"]["matched_sub_addr"]["params"] = $token_match_obj[0]->_source->params;
 
         if ($match_type == "id") {
@@ -232,6 +231,8 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
             $return_arr["results"]["matched_sub_addr"]["short_name"] = get_sub_addr_nbn($match_obj->official_address);
             $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $match_obj->carrier_locid;
             $return_arr["results"]["matched_sub_addr"]["mt_id"] = $match_obj->mt_locid;
+            $return_arr["results"]["matched_sub_addr"]["serv_class"] = $match_obj->serv_class;
+            $return_arr["results"]["matched_sub_addr"]["tech"] = $match_obj->tech;
             $return_arr["results"]["matched_sub_addr"]["params"] = $match_obj->params;
         } elseif (count($token_match_obj) == 1) { // this is an SDU
             $return_arr["results"]["matched_sub_addr"]["match_score"] = 100;
@@ -247,6 +248,8 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
                 $return_arr["results"]["matched_sub_addr"]["short_name"] = get_sub_addr_nbn($token_match_obj[$top_scores[0]]->_source->official_address);
                 $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $token_match_obj[$top_scores[0]]->_source->carrier_locid;
                 $return_arr["results"]["matched_sub_addr"]["mt_id"] = $token_match_obj[$top_scores[0]]->_source->mt_locid;
+                $return_arr["results"]["matched_sub_addr"]["serv_class"] = $token_match_obj[$top_scores[0]]->_source->serv_class;
+                $return_arr["results"]["matched_sub_addr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
                 $return_arr["results"]["matched_sub_addr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
 
                 $sub_addr_score = ($token_scores[$top_scores[0]] * 100) / ($usr_tokens_count * 5);
@@ -283,10 +286,6 @@ Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_st
 
     $result = es_qry(qstring_decode($search_str), $ret_limit, $qry_type);
     $json = json_decode($result);
-
-    //echo $result;
-    //exit();
-    //echo "took: " . $json->took . "ms<br>";
 
     $found_array = array();
     $hits = $json->hits->hits;
@@ -408,9 +407,9 @@ function hit_curl($meth, $curl_url, $post_data)
 
 function es_load_bulk($locs)
 {
+
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
-    $curl_url = $elasticHost ."/pfl/_bulk";
-//    echo $curl_url;
+    $curl_url = $elasticHost . "/pfl/_bulk";
     $curl_data = "";
 
     if (count($locs) > 0) {
@@ -427,6 +426,7 @@ function es_load_bulk($locs)
             $st_addr = $loc->road_name . " " . $loc->road_type_code . $simple_addr;
 
             $base_hash = substr(md5(get_base_addr_nbn($loc->formatted_address_string)), 0, 15);
+
             $mt_locid = "MTL" . sprintf("%'.012d", $loc->id);
             $search_addr_suffix = " | " . $loc->nbn_locid . " | L" . get_loc_num($loc->nbn_locid, "LOC") . " | " . $mt_locid;
 
@@ -468,16 +468,16 @@ function es_load_bulk($locs)
                 $search_addr[9] = get_processed_addr($loc->road_number_2 . " " . $st_addr);
             }
 
-            if ($loc->address_site_name != null) {
+            if (get_processed_complex_addr($loc->address_site_name) != null) {
 
                 // site name aliases shopping centres, building names etc
-                $search_addr[10] = get_processed_addr($loc->address_site_name . " " . $simple_addr);
+                $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
             }
 
-            if (($loc->secondary_complex_name != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
+            if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
 
                 // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
-                $search_addr[11] = get_processed_addr($loc->secondary_complex_name . " " . $simple_addr);
+                $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
             }
 
             for ($i = 1; $i <= 11; $i++) {
@@ -489,15 +489,20 @@ function es_load_bulk($locs)
                     $curl_gnaf = $loc->gnaf_persistent_identifier;
                     $curl_serv_class = $loc->service_class;
 
-                    if (in_array($i, [1, 5, 7, 8, 9, 10, 11])) { // if this is a base address
+                    if (in_array($i, [1, 5, 7, 8, 9])) { // if this is a base address
 
                         $rec_id = $i . $base_hash; // use base hash as record id for base addresses to avoid duplicates
 
                         if ($is_mdu == 1) { // if this is a base address for an mdu, then dont use the standard vals as this is basically a dummy record
                             $curl_formatted_addr = get_base_addr_nbn($loc->formatted_address_string);
                         }
-                    } // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
-                    else {
+                    } elseif ($i == 10) {
+                        // there are often different entries for site name at the same sub address - we want to get all of them uniquely
+                        $rec_id = $i . $base_hash . substr(md5($loc->address_site_name), 0, 10);;
+                    } elseif ($i == 11) {
+                        // there are often different entries for complex name at the same sub address - we want to get all of them uniquely
+                        $rec_id = $i . $base_hash . substr(md5($loc->secondary_complex_name), 0, 10);;
+                    } else { // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
                         $rec_id = $loc->id + ($i * 100000000000);
                     }
 
@@ -554,6 +559,7 @@ function es_load_bulk($locs)
 function es_qry($search_str, $res_limit, $qry_type)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     $qry_array = explode("|", $qry_type);
     $curl_url = $elasticHost . "/pfl/_search/";
 
@@ -589,7 +595,6 @@ function es_base_qry($search_str, $res_limit)
 
 function es_nearby_qry($lat, $lon, $res_limit)
 {
-
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     // 0.05 degrees is approx 5km
@@ -623,16 +628,14 @@ function es_bulk_base_qry($search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
-    $curl_url = $elasticHost . "pfl/_search/";
-    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "base_hash": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
+    $curl_url = $elasticHost . "/pfl/_search/";
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "base_hash": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
 function es_bulk_id_qry($search_str, $res_limit, $type)
 {
-    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
-
     // type is the type of ID eg. NBN, MT, etc.
     if ($type == "MTL") {
         $must = "mt_locid";
@@ -640,11 +643,35 @@ function es_bulk_id_qry($search_str, $res_limit, $type)
         $must = "carrier_locid";
     }
 
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "' . $must . '": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [4] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
-    //echo $curl_result;
-    //exit();
+    return $curl_result;
+}
+
+function es_bulk_complex_name_qry($search_str, $res_limit)
+{
+    // search str is a base hash
+    // looking for all type 10 and 11 alias's for that base hash
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
+    $curl_url = $elasticHost . "/pfl/_search/";
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "base_hash": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [10,11] } } } } } }';
+    $curl_result = hit_curl("POST", $curl_url, $qry_data);
+    return $curl_result;
+}
+
+function es_bulk_complex_hash_qry($search_str, $res_limit)
+{
+    // search str is a list of complex names (complex as in shopping complex)
+    // looking for all type 10 and 11 alias's for given complex names
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
+    $curl_url = $elasticHost . "/pfl/_search/";
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
+    $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
@@ -1005,23 +1032,31 @@ function find_processed_addr($addr_str)
 {
     // expects a processed addr_str
     $ret_val = null;
-    $hits = 0;
+    $best_json = null;
     $i = 1;
 
     $try[1] = "4, 5, 7, 8, 9, 10, 11"; // first try for everything
-    $try[2] = "5, 7, 8, 9, 10, 11"; // if we get multiple hits try for just base-address types
-    $try[3] = "5"; // if we possibly have bad data and still get duplicates, then nock out the range, lot addresses, site_name,
-    // and complex_name. this can be when we have a 25 smith st and a 25-27 smith st both in the raw data
+    $try[2] = "5, 7, 8, 9, 10, 11"; // if we get multiple hits try for just base-address types (may not need this??)
+    $try[3] = "5"; // there could be valid duplicates for site name or complex addresses or range addresses
 
-    while (($hits != 1) && ($i <= 3)) {
+    while ($i <= 3) { // keep trying for the smallest set result that has at least 1 record in it
         $result = es_bulk_qry($addr_str, "10", $try[$i]);
         $json = json_decode($result);
         $hits = $json->hits->total;
+
+        if ($hits == 0) {
+            break; // dont bother continuing if you got no results
+        } elseif ($hits == 1) {
+            $best_json = json_decode($result);
+            break; // if you got a unique result take it and stop
+        } else { // if you did get a result, this is as good or better than the last because its with a reduced set
+            $best_json = json_decode($result);
+        }
         $i++;
     }
 
-    if ($hits == 1) {
-        $ret_val = $json->hits->hits[0]->_source;
+    if ($best_json != null) {
+        $ret_val = $best_json->hits->hits[0]->_source; // can't do much more at this point so just take the first record
     }
 
     return $ret_val;
@@ -1049,19 +1084,45 @@ function find_processed_addr_by_id($id_str)
     return $ret_val;
 }
 
-function find_sub_addresses($addr_str)
+function find_sub_addresses($match_obj)
 {
-    // expects a base hash
+    // expects a match_obj
     $ret_val = null;
+    $base_hash = $match_obj->base_hash;
 
-    $result = es_bulk_base_qry($addr_str, "5000", "6");
+    // unfortunately we first need to see if this is a complex (eg. shopping centre or university) spanning multiple base hashes
+    // first need to get all the complex names and site names for records with the given base hash
+    $result = es_bulk_complex_name_qry($base_hash, "500");
+    $json = json_decode($result);
+    $hits = $json->hits->total;
+
+    if ($hits > 0) {
+        // if this is a complex, then we need to get all the base hashes it spans for all variations of its name
+        foreach ($json->hits->hits as $val) {
+            $complex_names_arr[$val->_source->alias_address] = $val->_source->alias_address;
+        }
+        $complex_names = implode('","', $complex_names_arr);
+
+        $result = es_bulk_complex_hash_qry($complex_names, "100");
+        $json = json_decode($result);
+        foreach ($json->hits->hits as $val) {
+            $complex_hashes_arr[$val->_source->base_hash] = $val->_source->base_hash;
+        }
+        $complex_hashes = implode('","', $complex_hashes_arr);
+        //echo $complex_hashes;
+        //exit();
+    } else {
+        $complex_hashes = $base_hash;
+    }
+
+    $result = es_bulk_base_qry($complex_hashes, "5000", "6");
     $json = json_decode($result);
     $hits = $json->hits->total;
 
     if ($hits > 0) { // first try to get the subaddress tokens
         $ret_val = $json->hits->hits;
     } else { // if no tokens its an sdu so just grab the base address
-        $result = es_bulk_base_qry($addr_str, "5000", "5");
+        $result = es_bulk_base_qry($base_hash, "5000", "5");
         $json = json_decode($result);
         $hits = $json->hits->total;
         if ($hits > 0) { // first try to get the subaddress tokens
@@ -1251,9 +1312,26 @@ function recursive_match($search_str)
             $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2;
             $match_obj = find_processed_addr($working_search_str_2);
 
+            // do the range addresses as well if they are part of the bit about to be chopped
+            $split = explode("_", $working_search_str_2, 3);
+            if (strpos($split[1], "-") !== false) {
+                $split2 = explode("-", $split[1]);
+                if (($match_obj == null) && ($try < 100)) {
+                    $try++;
+                    $working_search_str_2a = "_" . $split2[0] . "_" . $split[2];
+                    $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2a;
+                    $match_obj = find_processed_addr($working_search_str_2a);
+                }
+                if (($match_obj == null) && ($try < 100)) {
+                    $try++;
+                    $working_search_str_2b = "_" . $split2[1] . "_" . $split[2];
+                    $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2b;
+                    $match_obj = find_processed_addr($working_search_str_2b);
+                }
+            }
+
             // now get ready for the next inner iteration or exit
             if (substr_count($working_search_str_2, '_') > 5) {
-                $split = explode("_", $working_search_str_2, 3);
                 $working_search_str_2 = "_" . $split[2];
                 $try++;
             } else {
@@ -1310,4 +1388,100 @@ function get_proc_serv_type($serv_type)
     }
 
     return $ret_str;
+}
+
+function get_processed_complex_addr($str)
+{
+    $whitelist = false;
+    $ret_str = get_processed_addr($str);
+
+    $whitelist_arr = [
+        "_SHOPPING",
+        "_CENTRE",
+        "_COMPLEX",
+        "_MALL",
+        "_SCHOOL",
+        "_UNIVERSITY",
+        "_VILLIAGE",
+        "_GARDENS",
+        "_TAFE",
+        "_COLLEGE",
+        "_APPARTMENTS",
+        "_PARK",
+        "_CASINO",
+        "_TOWERS",
+        "_ARCADE",
+        "_WESTFIELD",
+        "_WESTFIELDS",
+        "_HOSPITAL",
+        "_PLAZA_",
+        "_COURT_"
+    ];
+
+    $strip_arr = [
+        "-",
+        "_BG",
+        "_BLDG",
+        "_BUILDING",
+        "_BLOCK",
+        "_ATM",
+        "_ADMIN_",
+        "_DISABLED_",
+        "_WORKSHOP",
+        "_FIRE_",
+        "_PANEL_",
+        "_FIP",
+        "_CAR_PARK",
+        "_VENDING",
+        "_KIOSK",
+        "_KSK",
+        "_LIFT",
+        "_PHONE",
+        "_FLOOR",
+        "_LEVEL",
+        "_LVL",
+        "_MACHINE",
+        "_TENNIS_COURTS_",
+        "_PASSENGER_",
+        "_DWELLING",
+        "_LOT",
+        "_LBBY",
+        "_LOBBY",
+        "_POOL_",
+        "_ROOM_",
+        "_MDF",
+        "_OFFICE_",
+        "_SECURITY_",
+        "_AND_",
+        "_SITE",
+        "_SHOP_"
+    ];
+
+    // only allow whitelisted complex names
+    foreach ($whitelist_arr as $val) {
+        if (stripos($ret_str, $val) !== false) {
+            $whitelist = true;
+        }
+    }
+
+    if ($whitelist == true) {
+        $ret_str = str_replace($strip_arr, "_", $ret_str); // remove specific strings
+        $ret_str = preg_replace('/([_])\1+/', '$1', $ret_str); // remove any repeat underscores
+        if (strlen($ret_str) > 6) {
+            $ret_str = "_" . trim($ret_str, '_') . "_";
+            $arr = explode("_", $ret_str);
+            foreach ($arr as $val) {
+                if (strlen($val) > 3) {
+                    $ret_arr[] = $val; // remove small words
+                }
+            }
+            $ret_str = "_" . implode("_", $ret_arr) . "_";
+        }
+    }
+
+    if ((strlen($ret_str) > 8) && ($whitelist == true)) {
+        return $ret_str;
+    } else {
+        return null;
+    }
 }

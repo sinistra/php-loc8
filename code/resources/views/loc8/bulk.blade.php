@@ -79,17 +79,15 @@
                 <div>bulk address resolver:</div>
                 <br>
                 <div>
-                    <button type="button" id="show_input_btn">show input</button>&nbsp;<button type="button"
-                                                                                               id="show_res_btn">show
-                        results
-                    </button>
+                    <button type="button" id="show_input_btn">show input</button>
+                    &nbsp;<button type="button" id="show_res_btn">show results</button>
                 </div>
                 <br>
                 <div>status:<br><input type="text" id="run_status" value="stopped" disabled></div>
                 <br>
                 <div>
-                    <button type="button" id="start_btn">start</button>&nbsp;<button type="button" id="stop_btn">stop
-                    </button>
+                    <button type="button" id="start_btn">start</button>
+                    &nbsp;<button type="button" id="stop_btn">stop</button>
                 </div>
                 <br><br>
                 <div id="loader_div" class="spinner">
@@ -170,8 +168,8 @@
                         row_str += "<td>" + data.results.matched_sub_addr.match_score + " [" + data.results.matched_sub_addr.match_msg + "]</td>";
                         if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
                             row_str += "<td>" + data.results.matched_sub_addr.carrier_id + "</td>";
-                            row_str += "<td>" + data.results.matched_sub_addr.params.serv_class + "</td>";
-                            row_str += "<td>" + data.results.matched_sub_addr.params.tech + "</td>";
+                            row_str += "<td>" + data.results.matched_sub_addr.serv_class + "</td>";
+                            row_str += "<td>" + data.results.matched_sub_addr.tech + "</td>";
                             row_str += "<td>" + data.results.matched_sub_addr.params.rfs_date + "</td>";
                             row_str += "<td>" + data.results.matched_sub_addr.params.poi_name + "</td>";
                             row_str += "<td>" + data.results.matched_sub_addr.params.poi_code + "</td>";
@@ -218,8 +216,6 @@
                         $("#loader_div").hide();
                     }
                 }
-
-
             }
 
             var bulk_data = $.trim($("#text_data").val());
