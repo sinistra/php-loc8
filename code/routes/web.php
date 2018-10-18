@@ -23,7 +23,7 @@ Route::get('/loc8', function () {
 
 Route::get('/locs/{id_num}', function ($id_num) {
 
-    $locs = DB::table('pfl_raw')
+    $locs = DB::table('pfl')
         ->where('nbn_location_identifier', '=', $id_num)
         ->get();
 
@@ -201,7 +201,7 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
             // these are the tokens for each of the match sub-addresses
             foreach ($token_match_obj as $key => $val) {
                 $token_vals[$key] = $val->_source->alias_address;
-                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address);
+                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_nbn($val->_source->official_address), get_base_addr_nbn($match_obj->official_address));
                 $return_arr["trace_data"]["token_scores"][$val->_source->alias_address] = $token_scores[$key];
             }
 
@@ -211,7 +211,7 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
             // now print out the all sub-addr data with the highest scores at the top
             $sub_addr_i = 0;
             foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
-                if ($val != 0) {
+                if ($val > 2) {
                     $return_arr["results"]["all_sub_addr"][$sub_addr_i] = get_sub_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
                     $sub_addr_i++;
                 }
@@ -220,8 +220,13 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
         asort($token_vals); // sort so we can show the higest scores first
 
+        if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
+            $return_arr["results"]["all_sub_addr"][$sub_addr_i] = "-";
+            $sub_addr_i++;
+        }
+
         foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
-            $return_arr["results"]["all_sub_addr"][$sub_addr_i] = get_sub_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+            $return_arr["results"]["all_sub_addr"][$sub_addr_i] = get_sub_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
             $sub_addr_i++;
         }
 
@@ -252,7 +257,7 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
                 $return_arr["results"]["matched_sub_addr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
                 $return_arr["results"]["matched_sub_addr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
 
-                $sub_addr_score = ($token_scores[$top_scores[0]] * 100) / ($usr_tokens_count * 5);
+                $sub_addr_score = round(($token_scores[$top_scores[0]] * 100) / (($usr_tokens_count * 5) + 2));
 
                 if (count($top_scores) == 1) { // single winner so return the score
                     $return_arr["results"]["matched_sub_addr"]["match_score"] = $sub_addr_score;
@@ -273,7 +278,11 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
     $return_arr["results"]["matched_base_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_base_addr"]["match_score"], "base");
     $return_arr["results"]["matched_sub_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_sub_addr"]["match_score"], "sub");
+    if (isset($top_scores) && (get_base_addr_nbn($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_nbn($match_obj->official_address))) {
+        $return_arr["results"]["matched_sub_addr"]["match_msg"] .= " (different base address, same complex)";
+    }
 
+    ksort($return_arr);
     header('Content-type: application/json');
     echo json_encode($return_arr, JSON_PRETTY_PRINT);
 
@@ -407,7 +416,6 @@ function hit_curl($meth, $curl_url, $post_data)
 
 function es_load_bulk($locs)
 {
-
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
     $curl_url = $elasticHost . "/pfl/_bulk";
     $curl_data = "";
@@ -617,7 +625,6 @@ function es_nearby_qry($lat, $lon, $res_limit)
 function es_bulk_qry($search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
-
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_address": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -627,7 +634,6 @@ function es_bulk_qry($search_str, $res_limit, $alias_types)
 function es_bulk_base_qry($search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
-
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "base_hash": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -636,14 +642,14 @@ function es_bulk_base_qry($search_str, $res_limit, $alias_types)
 
 function es_bulk_id_qry($search_str, $res_limit, $type)
 {
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     // type is the type of ID eg. NBN, MT, etc.
     if ($type == "MTL") {
         $must = "mt_locid";
     } else {
         $must = "carrier_locid";
     }
-
-    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "' . $must . '": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [4] } } } } } }';
@@ -668,9 +674,8 @@ function es_bulk_complex_hash_qry($search_str, $res_limit)
     // search str is a list of complex names (complex as in shopping complex)
     // looking for all type 10 and 11 alias's for given complex names
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
-
     $curl_url = $elasticHost . "/pfl/_search/";
-    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '","xxx"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
@@ -966,13 +971,18 @@ function get_sub_addr_tokens_nbn($addr_str)
     return $ret_str;
 }
 
-function score_token_matches($usr_str, $db_str)
+function score_token_matches($usr_str, $db_str, $db_base, $match_base)
 {
     // this iterates through the db sub-addr tokens and the usr sub-addr tokens
     // finds where the vals match, then gets what score it should give based
     // on how close the usr key (eg. TH) is to the db key (eg. TOWNHOUSE)
 
     $match_score = 0;
+
+    if ($db_base == $match_base) {
+        $match_score += 2;
+    }
+
     $usr_tokens_arr = array_unique(explode("_", $usr_str));
     $db_tokens_arr = array_unique(explode("_", $db_str));
 
@@ -1099,18 +1109,17 @@ function find_sub_addresses($match_obj)
     if ($hits > 0) {
         // if this is a complex, then we need to get all the base hashes it spans for all variations of its name
         foreach ($json->hits->hits as $val) {
-            $complex_names_arr[$val->_source->alias_address] = $val->_source->alias_address;
+            $complex_names_arr[$val->_source->alias_address] = substr($val->_source->alias_address, 0, 50); // only ngrams up to 50 chars
         }
         $complex_names = implode('","', $complex_names_arr);
 
         $result = es_bulk_complex_hash_qry($complex_names, "100");
         $json = json_decode($result);
+
         foreach ($json->hits->hits as $val) {
             $complex_hashes_arr[$val->_source->base_hash] = $val->_source->base_hash;
         }
         $complex_hashes = implode('","', $complex_hashes_arr);
-        //echo $complex_hashes;
-        //exit();
     } else {
         $complex_hashes = $base_hash;
     }

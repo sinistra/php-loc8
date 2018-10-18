@@ -506,11 +506,11 @@
                         console.log(base_ajax_url);
                         var at_addr_data = '';
                         $.get(base_ajax_url, function (data, status) {
-                            var addr_detail = '<span style="font-size: 14px;">' + data[0].FORMATTED_ADDRESS_STRING + '</span><br><br>';
+                            var addr_detail = '<span style="font-size: 14px;">' + data[0].formatted_address_string + '</span><br><br>';
                             addr_detail += '<div style="font-size: 11px;">';
-                            addr_detail += '<span>MT-LOC: ' + data[0].UID + '</span><br>';
-                            addr_detail += '<span>CARRIER-LOC: ' + data[0].NBN_LOCID + '</span><br>';
-                            addr_detail += '<span>GNAF: ' + data[0].GNAF_PERSISTENT_IDENTIFIER + '</span><br>';
+                            addr_detail += '<span>MT-LOC: ' + data[0].id + '</span><br>';
+                            addr_detail += '<span>CARRIER-LOC: ' + data[0].nbn_locid + '</span><br>';
+                            addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
                             $.each(data[0], function (key, val) {
