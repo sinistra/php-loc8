@@ -177,7 +177,8 @@
 
 <div id="header_div">
     <div id="logo_div">
-        <a href="/loc8"><img src="../images/logo-macquarie-telecom.png" style="height: 33px; margin: 8px 0px 0px 20px"></a>
+        <a href="/loc8"><img src="http://localhost/images/logo-macquarie-telecom.png"
+                             style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
             <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
         </div>
@@ -218,7 +219,9 @@
             <br>
             <p>All the best from the LOC-8 team.</p>
             <br>
-            <p><a href="/loc8/visualise">LOC-8</a> responsibly!</p>
+            <p><a href="/loc8/bulk">Click here to LOC8 in bulk.</a></p>
+            <br>
+            <p>LOC-8 responsibly!</p>
         </div>
         <div id="results_pane">
             <p style="font-size: 16px;">Search Results</p>
@@ -299,6 +302,21 @@
             doSubmitThings('button');
         });
 
+        <?php
+        if (isset($str)) {
+            echo "  $('#suggest_input').val('" . $str . "').trigger('change');\n";
+            echo "  $('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
+            echo "  setTimeout(function(){\n";
+            if ($type == "id") {
+                echo "      doSelectThings('enter');\n";
+            } else {
+                echo "      doSubmitThings('button');\n";
+            }
+            echo "  }, 600);\n";
+
+        }
+        ?>
+
     });
 
     var found_pin = [];
@@ -337,25 +355,39 @@
 
         map = new google.maps.Map(document.getElementById('map'), {
             zoom: 5,
-            center: myLatLng
+            center: myLatLng,
+            styles: [
+                {
+                    "elementType": "geometry.fill",
+                    "stylers": [{
+                        "saturation": -60
+                    }]
+                },
+                {
+                    "elementType": "labels.icon",
+                    "stylers": [{
+                        "saturation": -75
+                    }]
+                }
+            ]
         });
     }
 
-    function addPin(myLat, myLng, infoTxt, serv_class, tech, iconType) {
+    function addPin(myLat, myLng, infoTxt, serv_class, tech, mtId, iconType) {
 
-        var image1 = '../images/marker_black_filled.svg';
+        var image1 = 'http://localhost/images/marker_black_filled.svg';
         if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
             // colour coded marker if its in-service
-            var image2 = '../images/marker_' + tech + '_filled.svg';
+            var image2 = 'http://localhost/images/marker_' + tech + '_filled.svg';
         }
         else {
             // hollow marker if not in service
-            var image2 = '../images/marker_black_hollow.svg';
+            var image2 = 'http://localhost/images/marker_black_hollow.svg';
         }
 
 
         if (iconType == 1) { // main solid found marker
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 draggable: true,
@@ -370,10 +402,11 @@
 
         }
         else if (iconType == 2) { // hollow nearby markers
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 title: infoTxt,
+                marker_id: mtId,
                 icon: {
                     url: image2,
                     scaledSize: new google.maps.Size(24, 24),
@@ -382,7 +415,7 @@
             });
         }
         else {
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 title: infoTxt,
@@ -390,6 +423,17 @@
                 animation: google.maps.Animation.DROP
             });
         }
+
+        marker.addListener('click', function () {
+            console.log(marker.marker_id);
+
+            $('#suggest_input').val(marker.marker_id).trigger('change');
+            $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
+            setTimeout(function () {
+                doSelectThings('nearby');
+            }, 300);
+
+        });
 
         return marker;
     }
@@ -445,7 +489,7 @@
             map.panTo(foundLoc);
         }
 
-        found_pin[0] = addPin(geoLat, geoLon, '', '', '', 1);
+        found_pin[0] = addPin(geoLat, geoLon, '', '', '', '', 1);
 
         google.maps.event.addListener(found_pin[0], 'dragend', function () {
             var dragPos = found_pin[0].getPosition();
@@ -540,7 +584,7 @@
     function updateNearby(geoLat, geoLon) {
 
         // update nearby pane and nearby pins
-        var nearby_ajax_url = '/loc8/nearby_qry/' + geoLat + '/' + geoLon + '/50';
+        var nearby_ajax_url = '/loc8/nearby_qry/' + geoLat + '/' + geoLon + '/100';
         console.log(nearby_ajax_url);
         var nearby_data = '';
         $.get(nearby_ajax_url, function (data, status) {
@@ -552,7 +596,7 @@
                 }
                 nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
                 var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm : ' + val.tech + ']';
-                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, val.serv_class, val.tech, 2);
+                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, val.serv_class, val.tech, val.mt, 2);
 
             });
             nearby_data += ' ] } ]';

@@ -21,6 +21,12 @@ Route::get('/loc8', function () {
     return view('loc8.search');
 });
 
+Route::get('/loc8/map/{type}/{str}', function ($type, $str) {
+
+    return view('loc8.search', compact('type'), compact('str'));
+
+});
+
 Route::get('/locs/{id_num}', function ($id_num) {
 
     $locs = DB::table('pfl')
@@ -293,6 +299,15 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         $return_arr["results"]["matched_sub_addr"]["match_msg"] .= " (different base address, same complex)";
     }
 
+    if (isset($return_arr["results"]["matched_sub_addr"]["carrier_id"])) {
+
+        $details = DB::table('pfl_raw')
+            ->where('NBN_LOCID', '=', $return_arr["results"]["matched_sub_addr"]["carrier_id"])
+            ->limit(1)
+            ->get();
+        $return_arr["carrier_details"] = $details[0];
+    }
+
     ksort($return_arr);
     header('Content-type: application/json');
     echo json_encode($return_arr, JSON_PRETTY_PRINT);
@@ -427,7 +442,6 @@ function hit_curl($meth, $curl_url, $post_data)
 
 function es_load_bulk($locs)
 {
-
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     $curl_url = $elasticHost . "/pfl/_bulk";
@@ -524,7 +538,7 @@ function es_load_bulk($locs)
                         // there are often different entries for complex name at the same sub address - we want to get all of them uniquely
                         $rec_id = $i . $base_hash . substr(md5($loc->secondary_complex_name), 0, 10);;
                     } else { // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
-                        $rec_id = $loc->UID + ($i * 100000000000);
+                        $rec_id = $loc->id + ($i * 100000000000);
                     }
 
                     $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
@@ -543,7 +557,7 @@ function es_load_bulk($locs)
                         $curl_data .= safe_curl_date("rfs_date", $loc->ready_for_service_date) . ', ';
                         $curl_data .= '"poi_name": "' . $loc->poi_name . '", ';
                         $curl_data .= '"poi_code": "' . $loc->poi_identifier . '", ';
-                        $curl_data .= '"ada_code": "' . $loc->distribution_area_identifier . '", ';
+                        $curl_data .= '"ada_code": "' . $loc->distribution_region_identifier . '", ';
                         $curl_data .= safe_curl_date("disc_date", $loc->disconnection_date);
                         $curl_data .= '}, ';
                         $curl_data .= '"pg_id" : "' . $loc->id . '", ';

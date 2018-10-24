@@ -27,6 +27,14 @@
             font-size: 12px;
         }
 
+        th {
+            background: #292929;
+            color: #ffffff;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+        }
+
         p {
             font-size: 11px;
             padding: 0px;
@@ -115,7 +123,7 @@
             height: 100%;
             max-height: 100%;
             border: 0px orange solid;
-            padding: 12px 20px;
+            padding: 17px 20px;
             font-size: 13px;
         }
 
@@ -147,6 +155,223 @@
             height: 60%;
             overflow-y: auto;
         }
+
+        .side_btn {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+            background: #292929;
+            color: #ffffff;
+            border-radius: 14px;
+            padding: 2px 16px;
+        }
+
+        .side_btn:hover {
+            color: #3bd869;
+            border-color: #3bd869;
+        }
+
+        #run_status {
+            border-radius: 14px;
+            border: 0px;
+            padding: 3px 15px;
+            width: 70px;
+        }
+
+        #input_form {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        .btn {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+            margin-right: 3px;
+            border-color: #ced4da;
+            border-radius: 14px;
+            padding: 4px 10px;
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .btn:hover {
+            background: #ffffff;
+            color: #3bd869;
+            border-color: #3bd869;
+        }
+
+        .dropdown-item {
+            font-size: 10px;
+        }
+
+        .grid_link {
+            color: black;
+        }
+
+        .grid_link:visited {
+            color: #3bd869;
+        }
+
+        #grid_filter {
+            right: 168px;
+            top: 15px;
+            position: absolute;
+            width: 100px;
+        }
+
+        div.dataTables_wrapper div.dataTables_filter input {
+            border-radius: 14px;
+            padding: 1px 10px;
+        }
+
+        .btn-group > .btn-group:not(:last-child) > .btn, .btn-group > .btn:not(:last-child):not(.dropdown-toggle) {
+            border-radius: 14px;
+            margin-left: 0px;
+        }
+
+        .btn-group > .btn-group:not(:first-child) > .btn, .btn-group > .btn:not(:first-child) {
+            border-radius: 14px;
+            margin-left: 0px;
+        }
+
+        .dropdown-item.active {
+            background: #e0e0e0;
+            color: black;
+        }
+
+        .dropdown-item:active {
+            background: #e0e0e0;
+        }
+
+        div.dt-button-collection-title {
+            padding: 0px;
+        }
+
+        .dataTables_filter {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+        }
+
+        .score_100 {
+            width: 50px;
+            display: inline-block;
+            color: black;
+            border: 1px #3bd869 solid;
+            color: #3bd869;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .score_85 {
+            width: 50px;
+            display: inline-block;
+            color: black;
+            border: 1px #a5c300 solid;
+            color: #a5c300;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .score_60 {
+            width: 50px;
+            display: inline-block;
+            color: black;
+            border: 1px #cfd604 solid;
+            color: #cfd604;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .score_20 {
+            width: 50px;
+            display: inline-block;
+            color: black;
+            border: 1px #dc5405 solid;
+            color: #dc5405;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .score_0 {
+            width: 50px;
+            display: inline-block;
+            color: black;
+            border: 1px red solid;
+            color: red;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .FTTC_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #ca8829;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .Wireless_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #247b35;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .FTTN_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #5a0e62;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .FTTP_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #dfd906;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .HFC_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #2e4294;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .FTTB_tech {
+            width: 90px;
+            display: inline-block;
+            color: white;
+            background: #b6263a;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .Hollow_tech {
+            width: 90px;
+            display: inline-block;
+            color: black;
+            border: 1px black solid;
+            border-radius: 14px;
+            text-align: center;
+        }
+
     </style>
     <style type="text/css">
         /* spinner css from http://tobiasahlin.com/spinkit/ */
@@ -231,36 +456,32 @@
         </div>
         <div id="welcome_pane">
             <p style="font-size: 16px; padding-bottom: 10px;">Bulk Search</p>
-            <p>Now with extra bulkiness, LOC-8 (pronounced locate) is here to help you match customer addresses to
-                official (mostly NBN) servicable locations.</p>
+            <p>Now with extra bulkiness, LOC-8 is here to help you match all the things (customer addresses) to official
+                (mostly NBN) servicable locations.. in bulk.</p>
             <br>
-            <p><a href="/loc8/visualise">LOC-8</a> responsibly!</p>
+            <p>Advanced players only!</p>
             <br>
             <div>
-                <button type="button" id="show_input_btn">input</button>&nbsp;<button type="button" id="show_res_btn">
+                <button type="button" id="show_input_btn" class="side_btn">input</button>&nbsp;<button type="button"
+                                                                                                       id="show_res_btn"
+                                                                                                       class="side_btn">
                     results
                 </button>
             </div>
             <br>
             <div>
-                <button type="button" id="start_btn">start</button>&nbsp;<button type="button" id="stop_btn">stop
+                <button type="button" id="start_btn" class="side_btn">start</button>&nbsp;<button type="button"
+                                                                                                  id="stop_btn"
+                                                                                                  class="side_btn">stop
                 </button>
             </div>
             <br>
-            <div>status:<br><input type="text" id="run_status" value="stopped" disabled></div>
+            <div><input type="text" id="run_status" value="stopped" disabled></div>
             <br><br>
             <div id="loader_div" class="spinner">
                 <div class="dot1"></div>
                 <div class="dot2"></div>
             </div>
-        </div>
-        <div id="results_pane">
-            <p style="font-size: 16px;">Search Results</p>
-            <div id="results_area"></div>
-        </div>
-        <div id="at_address_pane">
-            <p style="font-size: 16px;">At Found Address</p>
-            <div id="address_tree" class="pane_tree"></div>
         </div>
     </div>
     <div id="content_div">
@@ -268,15 +489,14 @@
             <table id="grid" class="table table-striped table-bordered table-hover"></table>
         </div>
         <div id="input_div">
-            <div id="input_form" border="1" width="100%" style="font-size: 10pt;">
+            <div id="input_form" border="1" width="100%">
                 <span>To match addresses in bulk simply paste your data in the box below and then hit 'Start'.</span>
                 <br><span>.. data can be either;</span>
                 <ul>
                     <li>A list of UIDs and Addresses (<i>in that order - tab separated</i>)</li>
                     <li>A list of Addresses only</li>
                 </ul>
-                <textarea id="text_data"
-                          style="font-family: courier; width:100%; height: 400px; font-size: 10pt;"></textarea>
+                <textarea id="text_data" style="font-family: courier; width:100%; height: 400px; font-size: 10pt;">so much empty</textarea>
             </div>
         </div>
     </div>
@@ -321,10 +541,19 @@
             $('.dataTables_scrollBody').height(grid_ht);
         });
 
-        //var input_form_str = "<textarea id=\"text_data\" style=\"font-family: courier; width:100%; height: 300px; font-size: 10pt;\"></textarea>";
-        //$("#input_form").html($(input_form_str));
+////
+        $('#text_data').click(function () {
+            if ($('#text_data').val() == 'so much empty') {
+                $('#text_data').val('');
+            }
+        });
 
-        //$("#loader_div").hide();
+        $('#text_data').blur(function () {
+            if ($('#text_data').val() == '') {
+                $('#text_data').val('so much empty');
+            }
+        });
+
         $("#res_div").hide();
 
         $("#show_input_btn").click(function () {
@@ -377,19 +606,33 @@
                         row_str += '"uid": "' + row_uid + '",';
                         row_str += '"search_str": "' + row_addr + '",';
                         row_str += '"found_base": "' + data.results.matched_base_addr.long_name + '",';
-                        row_str += '"base_score": "' + data.results.matched_base_addr.match_score + ' [' + data.results.matched_base_addr.match_msg + ']",';
+                        row_str += '"base_score": "<span ' + scoreToClass(data.results.matched_base_addr.match_score) + '>' + data.results.matched_base_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_base_addr.match_msg + ']",';
                         row_str += '"found_sub": "' + data.results.matched_sub_addr.long_name + '",';
-                        row_str += '"sub_score": "' + data.results.matched_sub_addr.match_score + ' [' + data.results.matched_sub_addr.match_msg + ']"';
+                        row_str += '"sub_score": "<span ' + scoreToClass(data.results.matched_sub_addr.match_score) + '>' + data.results.matched_sub_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_sub_addr.match_msg + ']",';
                         if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                            row_str += ',"carrier_id": "' + data.results.matched_sub_addr.carrier_id + '",';
+                            row_str += '"carrier_id": "' + data.results.matched_sub_addr.carrier_id + '",';
                             row_str += '"serv_class": "' + data.results.matched_sub_addr.serv_class + '",';
-                            row_str += '"tech": "' + data.results.matched_sub_addr.tech + '",';
+                            row_str += '"tech": "<span ' + techToClass(data.results.matched_sub_addr.tech, data.results.matched_sub_addr.serv_class) + '>' + data.results.matched_sub_addr.tech + '</span>",';
                             row_str += '"rfs_date": "' + data.results.matched_sub_addr.params.rfs_date + '",';
                             row_str += '"poi_name": "' + data.results.matched_sub_addr.params.poi_name + '",';
                             row_str += '"poi_code": "' + data.results.matched_sub_addr.params.poi_code + '",';
                             row_str += '"ada_code": "' + data.results.matched_sub_addr.params.ada_code + '",';
-                            row_str += '"disc_date": "' + data.results.matched_sub_addr.params.disc_date + '"';
+                            row_str += '"disc_date": "' + data.results.matched_sub_addr.params.disc_date + '",';
+
+                            // add the extended address fields for bill
+                            $.each(data.carrier_details, function (key, val) {
+                                row_str += '"' + key + '": "' + val + '",';
+                            });
+
                         }
+                        row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>...</a>",';
+                        if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
+                            row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                        }
+                        else {
+                            row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                        }
+
                         row_str += '}';
                         var row_data = JSON.parse(row_str);
 
@@ -439,8 +682,6 @@
                         $("#loader_div").hide();
                     }
                 }
-
-
             }
 
             var bulk_data = $.trim($("#text_data").val());
@@ -453,6 +694,8 @@
         var grid_data = [];
 
         var grid_cols = [
+            {title: 'Detail', data: 'detail', width: '30px', defaultContent: '-'},
+            {title: 'Map', data: 'map', width: '30px', defaultContent: '-'},
             {title: 'UID', data: 'uid', width: '50px', defaultContent: '-'},
             {title: 'Search Str', data: 'search_str', width: '170px', defaultContent: '-'},
             {title: 'Found Base', data: 'found_base', width: '170px', defaultContent: '-'},
@@ -466,7 +709,26 @@
             {title: 'POI Name', data: 'poi_name', width: '110px', defaultContent: '-'},
             {title: 'POI Code', data: 'poi_code', defaultContent: '-'},
             {title: 'ADA Code', data: 'ada_code', width: '80px', defaultContent: '-'},
-            {title: 'Disc Date', data: 'disc_date', width: '80px', defaultContent: '-'}
+            {title: 'Disc Date', data: 'disc_date', width: '80px', defaultContent: '-'},
+
+            {title: 'UNIT_NUMBER', data: 'UNIT_NUMBER', defaultContent: '-'},
+            {title: 'UNIT_TYPE_CODE', data: 'UNIT_TYPE_CODE', defaultContent: '-'},
+            {title: 'LEVEL_NUMBER', data: 'LEVEL_NUMBER', defaultContent: '-'},
+            {title: 'LEVEL_TYPE_CODE', data: 'LEVEL_TYPE_CODE', defaultContent: '-'},
+            {title: 'ADDRESS_SITE_NAME', data: 'ADDRESS_SITE_NAME', defaultContent: '-'},
+            {title: 'ROAD_NUMBER_1', data: 'ROAD_NUMBER_1', defaultContent: '-'},
+            {title: 'ROAD_NUMBER_2', data: 'ROAD_NUMBER_2', defaultContent: '-'},
+            {title: 'LOT_NUMBER', data: 'LOT_NUMBER', defaultContent: '-'},
+            {title: 'ROAD_NAME', data: 'ROAD_NAME', defaultContent: '-'},
+            {title: 'ROAD_SUFFIX_CODE', data: 'ROAD_SUFFIX_CODE', defaultContent: '-'},
+            {title: 'ROAD_TYPE_CODE', data: 'ROAD_TYPE_CODE', defaultContent: '-'},
+            {title: 'LOCALITY_NAME', data: 'LOCALITY_NAME', defaultContent: '-'},
+            {title: 'SECONDARY_COMPLEX_NAME', data: 'SECONDARY_COMPLEX_NAME', defaultContent: '-'},
+            {title: 'POSTCODE', data: 'POSTCODE', defaultContent: '-'},
+            {title: 'STATE_TERRITORY_CODE', data: 'STATE_TERRITORY_CODE', defaultContent: '-'},
+            {title: 'LATITUDE', data: 'LATITUDE', defaultContent: '-'},
+            {title: 'LONGITUDE', data: 'LONGITUDE', defaultContent: '-'},
+
         ];
 
         $('#grid').DataTable({
@@ -476,6 +738,27 @@
             "info": false,
             "colReorder": true, //this is to allow users to drag-drop to re-order cols
             "order": [], //this is to turn off default ordering
+            "language": {
+                "search": "filter results:"
+            },
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: "colvis",
+                    text: "columns"
+                },
+                {
+                    extend: "excel",
+                    text: "excel",
+                    //action: function ( dt ) {
+                    //	console.log( 'excel clicked' );
+                    //}
+                },
+                {
+                    extend: "copyHtml5",
+                    text: "copy"
+                }
+            ],
             data: grid_data,
             columns: grid_cols
         });
@@ -513,6 +796,35 @@
             val = '-';
         }
         return val;
+    }
+
+    function scoreToClass(score) {
+        if (score == 100) {
+            val = 'score_100';
+        }
+        else if (score >= 85) {
+            val = 'score_85';
+        }
+        else if (score >= 60) {
+            val = 'score_60';
+        }
+        else if (score >= 20) {
+            val = 'score_20';
+        }
+        else {
+            val = 'score_0';
+        }
+        return ' class = \'' + val + '\' ';
+    }
+
+    function techToClass(tech, serv_class) {
+        if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
+            val = tech;
+        }
+        else {
+            val = 'Hollow';
+        }
+        return ' class = \'' + val + '_tech\' ';
     }
 
 </script>
