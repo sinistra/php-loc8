@@ -5,7 +5,7 @@
 <body>
 <ul>
     @foreach ($locs as $loc)
-        <li>{{ $loc->MT_LOCID . ' | ' . $loc->NBN_LOCID  . ' | ' . $loc->FORMATTED_ADDRESS_STRING}}</li>
+        <li>{{ $loc->id . ' | ' . $loc->nbn_locid  . ' | ' . $loc->formatted_address_string}}</li>
     @endforeach
 </ul>
 </body>

@@ -106,17 +106,22 @@ Route::get('/loc8/bulk', function () {
     return view('loc8.bulk');
 });
 
+Route::get('/loc8/bulk-old', function () {
+
+    return view('loc8.bulk-old');
+});
+
 Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str) {
 
     // this takes a carrier name and search string and returns the best addr match it can
     $match_obj = null; // the object that comes back from es when a match in es is found
     $google_arr = [];
     $return_arr = array(); //the end object that is returned from the api
+    $return_arr["trace_data"]["raw_user_str"] = qstring_decode($search_str);
 
     if (is_loc_id($search_str)) {
         // first see if this matches an ID of some sort
         $match_type = "id";
-        $return_arr["trace_data"]["raw_user_str"] = qstring_decode($search_str);
         $match_obj = find_processed_addr_by_id($search_str);
     } else {
         // process the input so that we are comparing apples with apples as much as possible
@@ -137,7 +142,10 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
             $match_type = "google";
             $google_arr = get_google_arr($search_str);
             $return_arr["trace_data"]["google_response"] = $google_arr;
-            $return_arr["trace_data"]["google_match"] = score_google_arr(get_processed_addr($search_str), $google_arr);
+
+            $google_check_str = get_google_check_str($google_arr);
+            $return_arr["trace_data"]["google_check_str"] = $google_check_str;
+            $return_arr["trace_data"]["google_match"] = score_match_addr(get_processed_addr($search_str), $google_check_str);
             $google_base_addr = get_processed_addr(get_base_addr_google($google_arr));
 
             $recursive_match_arr = recursive_match($google_base_addr);
@@ -148,10 +156,13 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
     if ($match_obj != null) { // yay - something matches what is in our database
 
-        if ($match_type == "google") {
+        if ($match_type == "id") {
+            $base_match_score = 100;
+        } elseif ($match_type == "google") {
             $base_match_score = $return_arr["trace_data"]["google_match"]["match_score"];
         } else {
-            $base_match_score = 100;
+            $return_arr["trace_data"]["base_match"] = score_match_addr(get_processed_addr($search_str), $match_obj->alias_address);
+            $base_match_score = $return_arr["trace_data"]["base_match"]["match_score"];
         }
 
         $return_arr["trace_data"]["match_type"] = $match_type;
@@ -276,8 +287,8 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         $return_arr["results"]["matched_sub_addr"]["match_score"] = 0;
     }
 
-    $return_arr["results"]["matched_base_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_base_addr"]["match_score"], "base");
-    $return_arr["results"]["matched_sub_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_sub_addr"]["match_score"], "sub");
+    $return_arr["results"]["matched_base_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_base_addr"]["match_score"], "base", $match_type);
+    $return_arr["results"]["matched_sub_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_sub_addr"]["match_score"], "sub", "");
     if (isset($top_scores) && (get_base_addr_nbn($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_nbn($match_obj->official_address))) {
         $return_arr["results"]["matched_sub_addr"]["match_msg"] .= " (different base address, same complex)";
     }
@@ -416,7 +427,9 @@ function hit_curl($meth, $curl_url, $post_data)
 
 function es_load_bulk($locs)
 {
+
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     $curl_url = $elasticHost . "/pfl/_bulk";
     $curl_data = "";
 
@@ -511,7 +524,7 @@ function es_load_bulk($locs)
                         // there are often different entries for complex name at the same sub address - we want to get all of them uniquely
                         $rec_id = $i . $base_hash . substr(md5($loc->secondary_complex_name), 0, 10);;
                     } else { // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
-                        $rec_id = $loc->id + ($i * 100000000000);
+                        $rec_id = $loc->UID + ($i * 100000000000);
                     }
 
                     $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
@@ -530,7 +543,7 @@ function es_load_bulk($locs)
                         $curl_data .= safe_curl_date("rfs_date", $loc->ready_for_service_date) . ', ';
                         $curl_data .= '"poi_name": "' . $loc->poi_name . '", ';
                         $curl_data .= '"poi_code": "' . $loc->poi_identifier . '", ';
-                        $curl_data .= '"ada_code": "' . $loc->distribution_region_identifier . '", ';
+                        $curl_data .= '"ada_code": "' . $loc->distribution_area_identifier . '", ';
                         $curl_data .= safe_curl_date("disc_date", $loc->disconnection_date);
                         $curl_data .= '}, ';
                         $curl_data .= '"pg_id" : "' . $loc->id . '", ';
@@ -625,6 +638,7 @@ function es_nearby_qry($lat, $lon, $res_limit)
 function es_bulk_qry($search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_address": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -634,6 +648,7 @@ function es_bulk_qry($search_str, $res_limit, $alias_types)
 function es_bulk_base_qry($search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "base_hash": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -659,10 +674,10 @@ function es_bulk_id_qry($search_str, $res_limit, $type)
 
 function es_bulk_complex_name_qry($search_str, $res_limit)
 {
-    // search str is a base hash
-    // looking for all type 10 and 11 alias's for that base hash
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
+    // search str is a base hash
+    // looking for all type 10 and 11 alias's for that base hash
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "base_hash": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [10,11] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -671,9 +686,10 @@ function es_bulk_complex_name_qry($search_str, $res_limit)
 
 function es_bulk_complex_hash_qry($search_str, $res_limit)
 {
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
     // search str is a list of complex names (complex as in shopping complex)
     // looking for all type 10 and 11 alias's for given complex names
-    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
     $curl_url = $elasticHost . "/pfl/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '","xxx"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
@@ -738,49 +754,38 @@ function get_snake_addr($addr_str)
 function get_normalised_addr($addr_str)
 {
 
-    $from_types = array(
-        "_STREET_",
-        "_STR_",
-        "_ROAD_",
-        "_AVENUE_",
-        "_AVE_",
-        "_PLACE_",
-        "_HIGHWAY_",
-        "_CIRCUIT_",
-        "_DRIVE_",
-        "_DRV_",
-        "_CRESCENT_",
-        "_CRES_",
-        "_CRS_",
-        "_COURT_",
-        "_BOULEVARD_",
-        "_BLVD_",
-        "_PARADE_",
-        "_TERRACE_"
+    $from_to_types = array(
+        "_STREET_" => "_ST_",
+        "_STR_" => "_ST_",
+        "_ROAD_" => "_RD_",
+        "_AVENUE_" => "_AV_",
+        "_AVE_" => "_AV_",
+        "_PLACE_" => "_PL_",
+        "_HIGHWAY_" => "_HWY_",
+        "_CIRCUIT_" => "_CCT_",
+        "_DRIVE_" => "_DR_",
+        "_DRV_" => "_DR_",
+        "_CRESCENT_" => "_CR_",
+        "_CRES_" => "_CR_",
+        "_CRS_" => "_CR_",
+        "_COURT_" => "_CT_",
+        "_BOULEVARD_" => "_BVD_",
+        "_BLVD_" => "_BVD_",
+        "_PARADE_" => "_PDE_",
+        "_TERRACE_" => "_TCE_",
+        "_CHARTERS_TOWERS_CITY_" => "_CHARTERS_TOWERS_",
+        "_BRISBANE_CITY_" => "_BRISBANE_",
+        "_PALMERSTON_CITY_" => "_PALMERSTON_",
+        "_DARWIN_CITY_" => "_DARWIN_",
+        "_ROCKHAMPTON_CITY_" => "_ROCKHAMPTON_",
+        "_TOOWOOMBA_CITY_" => "_TOOWOOMBA_",
+        "_TOWNSVILLE_CITY_" => "_TOWNSVILLE_",
+        "_CAIRNS_CITY_" => "_CAIRNS_",
+        "_MOUNT_ISA_CITY_" => "_MOUNT_ISA_",
+        "_SHELLHARBOUR_CITY_CENTRE_" => "_SHELLHARBOUR_"
     );
 
-    $to_types = array(
-        "_ST_",
-        "_ST_",
-        "_RD_",
-        "_AV_",
-        "_AV_",
-        "_PL_",
-        "_HWY_",
-        "_CCT_",
-        "_DR_",
-        "_DR_",
-        "_CR_",
-        "_CR_",
-        "_CR_",
-        "_CT_",
-        "_BVD_",
-        "_BVD_",
-        "_PDE_",
-        "_TCE_"
-    );
-
-    $ret_str = str_replace($from_types, $to_types, $addr_str);
+    $ret_str = str_replace(array_keys($from_to_types), array_values($from_to_types), $addr_str);
     return $ret_str;
 }
 
@@ -809,21 +814,47 @@ function get_sub_addr_nbn($addr_str)
     return $ret_str;
 }
 
+function get_base_addr_bits_usr($proc_usr_str, $proc_base_str)
+{
+    // remove the sub addr bits from the user string so that the base-addr bits should remain
+    // need to make sure to only remove each bit once - so if there is unit 20, 20 smith st, one
+    // this could mess up the order of the base address and is used for comparison/scoring purposes only
+
+    $proc_sub_str = get_sub_addr_usr($proc_usr_str, $proc_base_str);
+
+    $sub_arr = explode("_", $proc_sub_str);
+    $ret_str = $proc_usr_str;
+
+    foreach ($sub_arr as $val) {
+        $pos = strpos($ret_str, "_" . $val . "_");
+        if ($pos !== false) {
+            $ret_str = substr_replace($ret_str, "_", $pos, strlen("_" . $val . "_")); // this will only replace a single occurence
+        }
+    }
+
+    $ret_str = preg_replace('/([_])\1+/', '$1', $ret_str); // find any repeat underscores and turn them into a single underscore
+    $ret_str = trim($ret_str);
+    $ret_str = trim($ret_str, ',');
+    $ret_str = trim($ret_str, '_');
+
+    return "_" . $ret_str . "_";
+}
+
 function get_sub_addr_usr($proc_usr_str, $proc_base_str)
 {
-    $split1 = explode("_", strrev($proc_base_str), 4); // [0] is postcode, [1] is state, [2] is the rest
-    $num_st_suburb = strrev($split1[3]);
-    $split2 = explode("_", $num_st_suburb, 3);
-    $num = "_" . $split2[1] . "_";
-    $st_suburb = "_" . $split2[2] . "_";
-    $state = "_" . strrev($split1[2]) . "_";
-    $post_code = "_" . strrev($split1[1]) . "_";
+    // remove the base addr bits from the user string so that the sub-addr bits should remain
+    // need to make sure to only remove each bit once - so if there is unit 20, 20 smith st, one
+    // occurence of the 20 remains to make a subaddress token
 
-    $match_base_addr_bits = [$st_suburb, $post_code, $state, $num];
+    $base_arr = explode("_", $proc_base_str);
+    $ret_str = $proc_usr_str;
 
-    $proc_usr_str = "_" . $proc_usr_str . "_";
-
-    $ret_str = str_replace($match_base_addr_bits, "_", $proc_usr_str); // remove the base addr bits from the user string so that the sub-addr bits should remain
+    foreach ($base_arr as $val) {
+        $pos = strpos($ret_str, "_" . $val . "_");
+        if ($pos !== false) {
+            $ret_str = substr_replace($ret_str, "_", $pos, strlen("_" . $val . "_")); // this will only replace a single occurence
+        }
+    }
 
     $ret_str = preg_replace('/([_])\1+/', '$1', $ret_str); // find any repeat underscores and turn them into a single underscore
     $ret_str = trim($ret_str);
@@ -840,87 +871,90 @@ function get_sub_addr_usr($proc_usr_str, $proc_base_str)
 
 function get_sub_addr_tokens($addr_str)
 {
-    $ret_str = get_processed_addr($addr_str);
+    if ($addr_str != null) {
+        $ret_str = get_processed_addr($addr_str);
 
-    // now break at points between letters and numbers with a pipe
-    $arr = preg_split('/(?<=[0-9])(?=[a-z]+)/i', $ret_str);
-    $ret_str = implode("|", $arr);
-    $arr = preg_split('/(?<=[a-z])(?=[0-9]+)/i', $ret_str);
-    $ret_str = implode("|", $arr);
+        // now break at points between letters and numbers with a pipe
+        $arr = preg_split('/(?<=[0-9])(?=[a-z]+)/i', $ret_str);
+        $ret_str = implode("|", $arr);
+        $arr = preg_split('/(?<=[a-z])(?=[0-9]+)/i', $ret_str);
+        $ret_str = implode("|", $arr);
 
-    // now need to find keywords and see what is next after them
-    // replace keywords with trailing space with standard keyword with trailing ":"
+        // now need to find keywords and see what is next after them
+        // replace keywords with trailing space with standard keyword with trailing ":"
 
-    $token_keywords = [
-        "UNIT" => "UNIT",
-        "U" => "UNIT",
-        "LVL" => "LVL",
-        "LEVEL" => "LVL",
-        "L" => "L", // could be level or lot - have to leave as-is
-        "FLOOR" => "FLR",
-        "FLR" => "FLR",
-        "ROOM" => "RM",
-        "RM" => "RM",
-        "TH" => "TH",
-        "TOWNHOUSE" => "TH",
-        "LOT" => "LOT",
-        "APPARTMENT" => "APT",
-        "APPT" => "APT",
-        "APT" => "APT",
-        "S" => "S", // could be suite or shop - have to leave as-is
-        "SUITE" => "SUITE",
-        "SH" => "SHOP",
-        "SHP" => "SHOP",
-        "SHOP" => "SHOP",
-        "OFFC" => "OFFC",
-        "OFFICE" => "OFFC",
-        "OFC" => "OFFC",
-        "TENNANCY" => "TNCY",
-        "TNCY" => "TNCY",
-        "KIOSK" => "KSK",
-        "KSK" => "KSK"
-    ];
+        $token_keywords = [
+            "UNIT" => "UNIT",
+            "U" => "UNIT",
+            "LVL" => "LVL",
+            "LEVEL" => "LVL",
+            "L" => "L", // could be level or lot - have to leave as-is
+            "FLOOR" => "FLR",
+            "FLR" => "FLR",
+            "ROOM" => "RM",
+            "RM" => "RM",
+            "TH" => "TH",
+            "TOWNHOUSE" => "TH",
+            "LOT" => "LOT",
+            "APPARTMENT" => "APT",
+            "APPT" => "APT",
+            "APT" => "APT",
+            "S" => "S", // could be suite or shop - have to leave as-is
+            "SUITE" => "SUITE",
+            "SH" => "SHOP",
+            "SHP" => "SHOP",
+            "SHOP" => "SHOP",
+            "OFFC" => "OFFC",
+            "OFFICE" => "OFFC",
+            "OFC" => "OFFC",
+            "TENNANCY" => "TNCY",
+            "TNCY" => "TNCY",
+            "KIOSK" => "KSK",
+            "KSK" => "KSK"
+        ];
 
-    // now insert keywords separated by _key_
-    foreach ($token_keywords as $key => $val) {
-        $from = "_" . $key . "_";
-        $to = "_#" . $val . ":";
-        $ret_str = str_replace($from, $to, $ret_str);
-    }
-
-    // now insert keywords separated by |key_
-    foreach ($token_keywords as $key => $val) {
-        $from = "|" . $key . "_";
-        $to = "|#" . $val . ":";
-        $ret_str = str_replace($from, $to, $ret_str);
-    }
-
-    // now insert keywords separated by _key|
-    foreach ($token_keywords as $key => $val) {
-        $from = "_" . $key . "|";
-        $to = "_#" . $val . ":";
-        $ret_str = str_replace($from, $to, $ret_str);
-    }
-
-    $ret_str = str_replace("|", "", $ret_str); // now remove the pipes and trim the ends
-    $ret_str = trim($ret_str, '_'); // trim underscores off the start and end
-
-    // now add an X: to anything that is not already a tuple
-    $arr = explode("_", $ret_str);
-    foreach ($arr as $key => $val) {
-        if (strpos($val, ":") == false) {
-            $arr[$key] = "X:" . $val;
+        // now insert keywords separated by _key_
+        foreach ($token_keywords as $key => $val) {
+            $from = "_" . $key . "_";
+            $to = "_#" . $val . ":";
+            $ret_str = str_replace($from, $to, $ret_str);
         }
+
+        // now insert keywords separated by |key_
+        foreach ($token_keywords as $key => $val) {
+            $from = "|" . $key . "_";
+            $to = "|#" . $val . ":";
+            $ret_str = str_replace($from, $to, $ret_str);
+        }
+
+        // now insert keywords separated by _key|
+        foreach ($token_keywords as $key => $val) {
+            $from = "_" . $key . "|";
+            $to = "_#" . $val . ":";
+            $ret_str = str_replace($from, $to, $ret_str);
+        }
+
+        $ret_str = str_replace("|", "", $ret_str); // now remove the pipes and trim the ends
+        $ret_str = trim($ret_str, '_'); // trim underscores off the start and end
+
+        // now add an X: to anything that is not already a tuple
+        $arr = explode("_", $ret_str);
+        foreach ($arr as $key => $val) {
+            if (strpos($val, ":") == false) {
+                $arr[$key] = "X:" . $val;
+            }
+        }
+
+        // now get rid of any duplicates
+        $arr = array_unique($arr);
+
+        $ret_str = implode("_", $arr);
+
+        $ret_str = str_replace("#", "", $ret_str); // now remove the hashes
+        $ret_str = preg_replace('/([:])\1+/', '$1', $ret_str); // find any repeat ":" and turn it into a single ":"
+    } else {
+        $ret_str = null;
     }
-
-    // now get rid of any duplicates
-    $arr = array_unique($arr);
-
-    $ret_str = implode("_", $arr);
-
-    $ret_str = str_replace("#", "", $ret_str); // now remove the hashes
-    $ret_str = preg_replace('/([:])\1+/', '$1', $ret_str); // find any repeat ":" and turn it into a single ":"
-
     return $ret_str;
 }
 
@@ -1044,6 +1078,7 @@ function find_processed_addr($addr_str)
     $ret_val = null;
     $best_json = null;
     $i = 1;
+    $addr_str = substr($addr_str, 0, 50); // we only create ngrams up to 50 chars long
 
     $try[1] = "4, 5, 7, 8, 9, 10, 11"; // first try for everything
     $try[2] = "5, 7, 8, 9, 10, 11"; // if we get multiple hits try for just base-address types (may not need this??)
@@ -1179,67 +1214,76 @@ function get_base_addr_google($google_arr)
     return $ret_str;
 }
 
-function score_google_arr($search_str, $google_arr)
+function get_google_check_str($google_arr)
 {
-    // the idea here is to first check for st num, route and locality exact mathes with google,
-    // and then go through what the user typed and see if that is what is in the google array
-    // this way if a user types a building name or something, they get points for that
-    // but dont lose points if its in google, but they didnt type it
-
-    $score = 0;
-    $max_score = 0;
-
-    $search_str_nums = preg_replace("/[^0-9]/", "_", $search_str); // this is to check for near st num matches eg. 9 vs 9B = pass, 9 vs 90 = fail
-    $ret_arr["search_str_nums"] = $search_str_nums;
-
-    // first go through and see if the key components from the google address are in what the user typed and score those
-    $main_addr_components = ["street_number" => 20, "route" => 40, "locality" => 20]; // the numbers are the points for each good match
-    foreach ($main_addr_components as $key => $val) {
-        if (isset($google_arr[$key])) {
-            if (strpos($search_str, get_processed_addr($google_arr[$key])) !== false) {
-                $ret_arr[$key] = ":) exact match";
-                $score += $val;
-            } elseif (strpos($search_str_nums, get_processed_addr($google_arr[$key])) !== false) {
-                $ret_arr[$key] = ":| near match";
-                $score += 5;
-            } else {
-                $ret_arr[$key] = ":( no match";
-            }
-            $max_score += $val;
-        }
-    }
-
-    // now create a processed string from the google response, so that we can check what the user typed vs that string
+    // create a processed string from the google response, so that we can check what the user typed vs that string
     $check_str = "";
     foreach ($google_arr as $key => $val) {
-        if (!in_array($key, ["country", "administrative_area_level_2"])) {
+        if (!in_array($key, ["subpremise", "premise", "country", "administrative_area_level_2"])) {
             $check_str .= "_" . $val;
         }
     }
 
-    $check_str = get_processed_addr($check_str);
-    $ret_arr["check_str"] = $check_str;
+    $ret_str = get_processed_addr($check_str);
+    return $ret_str;
 
-    // now turn what the user typed into an array with each bit and loop through that and compare to the google response string
-    $search_str = trim($search_str, '_');
-    $search_arr = explode("_", $search_str);
-    foreach ($search_arr as $key => $val) {
-        $processed_val = "_" . $val . "_";
-        if (strpos($check_str, $processed_val) !== false) {
-            $ret_arr[$processed_val] = ":) exact match";
-            $score += 10;
-        } else {
-            $ret_arr[$processed_val] = ":( no match";
-        }
-        $max_score += 10;
-    }
+}
 
-    $ret_arr["match_score"] = round(($score * 100) / $max_score);
-    $ret_arr["score/total"] = $score . "/" . $max_score;
+function score_match_addr($search_str, $match_addr)
+{
+    ////// was intending to do a 2-way match but can't reliably get the users base address
+    ////// so for now its just a score of how much of what the user typed was in the match
+
+    $ret_arr[1] = score_strings($search_str, $match_addr);
+    //$ret_arr[2] = score_strings($match_addr,$search_str);
+
+    //$ret_arr[2] = score_strings($match_addr,get_base_addr_bits_usr($search_str,$match_addr));
+    //$ret_arr["match_points"] = ($ret_arr[1]["score"]+$ret_arr[2]["score"]) . " of " . ($ret_arr[1]["total"]+$ret_arr[2]["total"]);
+    //$ret_arr["match_score"] = round((($ret_arr[1]["score"]+$ret_arr[2]["score"])*100) / ($ret_arr[1]["total"]+$ret_arr[2]["total"]));
+
+    $ret_arr["match_points"] = $ret_arr[1]["score"] . " of " . $ret_arr[1]["total"];
+    $ret_arr["match_score"] = round(($ret_arr[1]["score"] * 100) / $ret_arr[1]["total"]);
+
     return $ret_arr;
 }
 
-function match_score_to_msg($score, $type)
+function score_strings($str1, $str2)
+{
+    // idea is to go through what the user typed and see if that is what is in the base addr
+    // this way if a user types a building name or something, they get points for that
+    // but dont lose points if its in the base addr, but they didnt type it
+
+    $score = 0;
+    $max_score = 0;
+
+    $str1_nums = preg_replace("/[^0-9]/", "_", $str1); // this is to check for near st num matches eg. 9 vs 9B = pass, 9 vs 90 = fail
+    $ret_arr["search_str_nums"] = $str1_nums;
+
+    // now turn what match_addr into an array with each bit and loop through that and compare to the user string
+    $str2 = trim($str2, '_');
+    $str2_arr = explode("_", $str2);
+    foreach ($str2_arr as $key => $val) {
+        if (strpos($val, "| MTL") == false) { // exclude the bits at the end of type-4 alias's
+            $processed_val = "_" . $val . "_";
+            if (strpos($str1, $processed_val) !== false) {
+                $ret_arr[$processed_val] = ":) exact match";
+                $score += 10;
+            } elseif (strpos($str1_nums, $processed_val) !== false) {
+                $ret_arr[$key] = ":| near match";
+                $score += 5;
+            } else {
+                $ret_arr[$processed_val] = ":( no match";
+            }
+            $max_score += 10;
+        }
+    }
+
+    $ret_arr["score"] = $score;
+    $ret_arr["total"] = $max_score;
+    return $ret_arr;
+}
+
+function match_score_to_msg($score, $addr_type, $match_type)
 {
     $ret_str = "";
 
@@ -1254,16 +1298,16 @@ function match_score_to_msg($score, $type)
     }
 
     if ($score == 100) {
-        $ret_str = $type . "-address exact match";
+        $ret_str = $addr_type . "-address exact match";
     } elseif ($score >= 20) {
-        $ret_str = $type . "-address " . $str;
-        if ($type == "base") {
+        $ret_str = $addr_type . "-address " . $str;
+        if ($match_type == "google") {
             $ret_str .= " (via google).";
         }
     } elseif ($score == 1) {
-        $ret_str = "multiple " . $type . "-address matches found.";
+        $ret_str = "multiple " . $addr_type . "-address matches found.";
     } else {
-        $ret_str = "no " . $type . "-address match found.";
+        $ret_str = "no " . $addr_type . "-address match found.";
     }
 
     return $ret_str;
@@ -1311,12 +1355,12 @@ function recursive_match($search_str)
     $try = 1;
     $match_obj = null;
 
-    while (($match_obj == null) && ($working_search_str_1 != "") && ($try < 100)) {
+    while (($match_obj == null) && ($working_search_str_1 != "") && ($try < 200)) {
 
         $match_type = "string";
         $working_search_str_2 = $working_search_str_1;
 
-        while (($match_obj == null) && ($working_search_str_2 != "") && ($try < 100)) {
+        while (($match_obj == null) && ($working_search_str_2 != "") && ($try < 200)) {
 
             $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2;
             $match_obj = find_processed_addr($working_search_str_2);
@@ -1325,13 +1369,13 @@ function recursive_match($search_str)
             $split = explode("_", $working_search_str_2, 3);
             if (strpos($split[1], "-") !== false) {
                 $split2 = explode("-", $split[1]);
-                if (($match_obj == null) && ($try < 100)) {
+                if (($match_obj == null) && ($try < 200)) {
                     $try++;
                     $working_search_str_2a = "_" . $split2[0] . "_" . $split[2];
                     $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2a;
                     $match_obj = find_processed_addr($working_search_str_2a);
                 }
-                if (($match_obj == null) && ($try < 100)) {
+                if (($match_obj == null) && ($try < 200)) {
                     $try++;
                     $working_search_str_2b = "_" . $split2[1] . "_" . $split[2];
                     $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2b;

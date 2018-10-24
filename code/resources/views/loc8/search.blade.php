@@ -344,8 +344,15 @@
     function addPin(myLat, myLng, infoTxt, serv_class, tech, iconType) {
 
         var image1 = '../images/marker_black_filled.svg';
-        //var image2 = '../images/marker_black_hollow.svg';
-        var image2 = '../images/marker_' + tech + '_filled.svg';
+        if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
+            // colour coded marker if its in-service
+            var image2 = '../images/marker_' + tech + '_filled.svg';
+        }
+        else {
+            // hollow marker if not in service
+            var image2 = '../images/marker_black_hollow.svg';
+        }
+
 
         if (iconType == 1) { // main solid found marker
             marker = new google.maps.Marker({
