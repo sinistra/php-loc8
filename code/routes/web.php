@@ -60,7 +60,7 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
         $search_val = '%' . $search_val;
     }
 
-    $locs = DB::table('pfl')
+    $locs = DB::table('pfl_lean')
         ->where($search_key, $query_type, $search_val)
         ->limit(10)
         ->get();
@@ -189,7 +189,12 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
         if ($match_type != "id") {
             // now need to find user tokens based on the users base address
-            $processed_matched_base_addr = get_processed_addr($matched_base_addr);
+
+            if (in_array($match_obj->alias_type, [8, 9, 10, 11])) { // if the match was based on a base alias - work out the sub-address from that
+                $processed_matched_base_addr = get_processed_addr($match_obj->alias_address);
+            } else { // else work out the sub-address from the official base address
+                $processed_matched_base_addr = get_processed_addr($matched_base_addr);
+            }
             $usr_sub_addr_str = get_sub_addr_usr($processed_search_str, $processed_matched_base_addr);
             $return_arr["trace_data"]["processed_usr_base_addr"] = $processed_matched_base_addr;
         }
@@ -301,8 +306,8 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
     if (isset($return_arr["results"]["matched_sub_addr"]["carrier_id"])) {
 
-        $details = DB::table('pfl_raw')
-            ->where('NBN_LOCID', '=', $return_arr["results"]["matched_sub_addr"]["carrier_id"])
+        $details = DB::table('pfl')
+            ->where('nbn_locid', '=', $return_arr["results"]["matched_sub_addr"]["carrier_id"])
             ->limit(1)
             ->get();
         $return_arr["carrier_details"] = $details[0];
@@ -1003,7 +1008,7 @@ function get_token_scores($str1, $str2)
         if (array_key_exists($translation, $translation_scores)) {
             $score = $translation_scores[$translation];
         } elseif ($str1 == "X") {
-            $score = 4;
+            $score = 2;
         } else {
             $score = 0;
         }

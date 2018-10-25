@@ -170,6 +170,11 @@
             height: 60%;
             overflow-y: auto;
         }
+
+        button:focus {
+            outline-width: 0px;
+        }
+
     </style>
 
 </head>
@@ -219,7 +224,7 @@
             <br>
             <p>All the best from the LOC-8 team.</p>
             <br>
-            <p><a href="/loc8/bulk">Click here to LOC8 in bulk.</a></p>
+            <p><a href="/loc8/bulk">>>> Click here to LOC8 in BULK <<<</a></p>
             <br>
             <p>LOC-8 responsibly!</p>
         </div>
@@ -304,15 +309,15 @@
 
         <?php
         if (isset($str)) {
-            echo "  $('#suggest_input').val('" . $str . "').trigger('change');\n";
-            echo "  $('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
-            echo "  setTimeout(function(){\n";
+            echo "	$('#suggest_input').val('" . $str . "').trigger('change');\n";
+            echo "	$('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
+            echo "	setTimeout(function(){\n";
             if ($type == "id") {
-                echo "      doSelectThings('enter');\n";
+                echo "		doSelectThings('enter');\n";
             } else {
-                echo "      doSubmitThings('button');\n";
+                echo "		doSubmitThings('button');\n";
             }
-            echo "  }, 600);\n";
+            echo "	}, 600);\n";
 
         }
         ?>

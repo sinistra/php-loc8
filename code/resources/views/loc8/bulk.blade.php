@@ -63,6 +63,19 @@
             border: 0px pink solid;
         }
 
+        .stats {
+            display: inline-block;
+            width: 70px;
+            font-size: 16pt;
+            font-weight: 100;
+            font-style: normal;
+            letter-spacing: 2px;
+        }
+
+        .stats_div {
+            height: 32px;
+        }
+
         #main_wrapper {
             width: 100%;
             height: 100%;
@@ -87,34 +100,13 @@
         }
 
         #results_pane {
-            display: none;
-            border: 0px white solid;
-            padding: 12px 20px 12px 20px;
-        }
-
-        #results_area {
-            margin-left: 10px;
-        }
-
-        #at_address_pane {
-            display: none;
             border: 0px white solid;
             border-top: 1px #545454 solid;
             padding: 10px 20px 12px 20px;
         }
 
-        #at_geo_pane {
-            display: none;
-            border: 0px white solid;
-            border-top: 1px #545454 solid;
-            padding: 12px 20px 12px 20px;
-        }
-
-        #nearby_pane {
-            display: none;
-            border: 0px white solid;
-            border-top: 1px #545454 solid;
-            padding: 12px 20px 12px 20px;
+        #results_area {
+            margin-left: 10px;
         }
 
         #content_div {
@@ -372,6 +364,24 @@
             text-align: center;
         }
 
+        button:focus {
+            outline-width: 0px;
+        }
+
+        input:focus {
+            outline-width: 0px;
+            border-color: #3bd869;
+            box shadow: 0px;
+        }
+
+        .form-control:focus {
+            outline-width: 0px;
+            border-color: #3bd869;
+            -webkit-box-shadow: none;
+            -moz-box-shadow: none;
+            box-shadow: none;
+        }
+
     </style>
     <style type="text/css">
         /* spinner css from http://tobiasahlin.com/spinkit/ */
@@ -381,7 +391,6 @@
             height: 40px;
             position: relative;
             text-align: center;
-            display: none;
 
             -webkit-animation: sk-rotate 2.0s infinite linear;
             animation: sk-rotate 2.0s infinite linear;
@@ -456,10 +465,6 @@
         </div>
         <div id="welcome_pane">
             <p style="font-size: 16px; padding-bottom: 10px;">Bulk Search</p>
-            <p>Now with extra bulkiness, LOC-8 is here to help you match all the things (customer addresses) to official
-                (mostly NBN) servicable locations.. in bulk.</p>
-            <br>
-            <p>Advanced players only!</p>
             <br>
             <div>
                 <button type="button" id="show_input_btn" class="side_btn">input</button>&nbsp;<button type="button"
@@ -478,9 +483,20 @@
             <br>
             <div><input type="text" id="run_status" value="stopped" disabled></div>
             <br><br>
-            <div id="loader_div" class="spinner">
+            <div id="loader_div" class="spinner" style="visibility: hidden;">
                 <div class="dot1"></div>
                 <div class="dot2"></div>
+            </div>
+        </div>
+        <div id="results_pane">
+            <p style="font-size: 16px;">Search Results</p>
+            <div id="results_area">
+                <br>
+                <div class="stats_div"><span id="records" class="stats">0</span><span>records</span></div>
+                <div class="stats_div"><span id="perc_compl" class="stats">0</span><span>% complete</span></div>
+                <div class="stats_div"><span id="perc_base" class="stats">0</span><span>% base matched</span></div>
+                <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
+                <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
             </div>
         </div>
     </div>
@@ -496,7 +512,8 @@
                     <li>A list of UIDs and Addresses (<i>in that order - tab separated</i>)</li>
                     <li>A list of Addresses only</li>
                 </ul>
-                <textarea id="text_data" style="font-family: courier; width:100%; height: 400px; font-size: 10pt;">so much empty</textarea>
+                <textarea id="text_data"
+                          style="font-family: courier; width:100%; height: 400px; font-size: 10pt;"></textarea>
             </div>
         </div>
     </div>
@@ -541,16 +558,19 @@
             $('.dataTables_scrollBody').height(grid_ht);
         });
 
-////
+        var textarea_pre = ' so much empty..\n\n\n <-- the start button is over there';
+        $('#text_data').val(textarea_pre);
+
+
         $('#text_data').click(function () {
-            if ($('#text_data').val() == 'so much empty') {
+            if ($('#text_data').val() == textarea_pre) {
                 $('#text_data').val('');
             }
         });
 
         $('#text_data').blur(function () {
             if ($('#text_data').val() == '') {
-                $('#text_data').val('so much empty');
+                $('#text_data').val(textarea_pre);
             }
         });
 
@@ -560,7 +580,7 @@
             $("#res_div").hide();
             $("#input_div").show();
             $("#run_status").val("stopped");
-            $("#loader_div").hide();
+            xhide($("#loader_div"));
         });
 
         $("#show_res_btn").click(function () {
@@ -570,70 +590,120 @@
 
         $("#stop_btn").click(function () {
             $("#run_status").val("stopped");
-            $("#loader_div").hide();
+            xhide($("#loader_div"));
         });
 
         $("#start_btn").click(function () {
-            $("#run_status").val("running");
-            $("#loader_div").show();
-            $("#input_div").hide();
-            $("#res_div").show();
+            if ($('#text_data').val() != textarea_pre) {
+                $("#run_status").val("running");
+                xshow($("#loader_div"));
+                $("#input_div").hide();
+                $("#res_div").show();
 
-//				// this is to reset the results next time start is clicked
-            var table = $('#grid').DataTable();
-            table.clear().draw();
+                //				// this is to reset the results next time start is clicked
+                var table = $('#grid').DataTable();
+                table.clear().draw();
 
-            function doNext(row_id) {
+                function doNext(row_id) {
 
-                if (bulk_data_arr[row_id].length > 0) {
+                    if (bulk_data_arr[row_id].length > 0) {
 
-                    var row_data_arr = bulk_data_arr[row_id].split('\t')
-                    if (typeof(row_data_arr[1]) !== 'undefined') { // this means it has tab separated UIDs in first col
-                        var row_addr = row_data_arr[1];
-                        var row_uid = row_data_arr[0];
-                    }
-                    else {
-                        var row_addr = row_data_arr[0];
-                        var row_uid = '-';
-                    }
-
-                    var ajax_url = "/loc8/match/nbn/" + safeUrl(row_addr);
-                    console.log(ajax_url);
-
-                    $.get(ajax_url, function (data, status) {
-
-                        var row_str = '{';
-                        row_str += '"uid": "' + row_uid + '",';
-                        row_str += '"search_str": "' + row_addr + '",';
-                        row_str += '"found_base": "' + data.results.matched_base_addr.long_name + '",';
-                        row_str += '"base_score": "<span ' + scoreToClass(data.results.matched_base_addr.match_score) + '>' + data.results.matched_base_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_base_addr.match_msg + ']",';
-                        row_str += '"found_sub": "' + data.results.matched_sub_addr.long_name + '",';
-                        row_str += '"sub_score": "<span ' + scoreToClass(data.results.matched_sub_addr.match_score) + '>' + data.results.matched_sub_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_sub_addr.match_msg + ']",';
-                        if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                            row_str += '"carrier_id": "' + data.results.matched_sub_addr.carrier_id + '",';
-                            row_str += '"serv_class": "' + data.results.matched_sub_addr.serv_class + '",';
-                            row_str += '"tech": "<span ' + techToClass(data.results.matched_sub_addr.tech, data.results.matched_sub_addr.serv_class) + '>' + data.results.matched_sub_addr.tech + '</span>",';
-                            row_str += '"rfs_date": "' + data.results.matched_sub_addr.params.rfs_date + '",';
-                            row_str += '"poi_name": "' + data.results.matched_sub_addr.params.poi_name + '",';
-                            row_str += '"poi_code": "' + data.results.matched_sub_addr.params.poi_code + '",';
-                            row_str += '"ada_code": "' + data.results.matched_sub_addr.params.ada_code + '",';
-                            row_str += '"disc_date": "' + data.results.matched_sub_addr.params.disc_date + '",';
-
-                            // add the extended address fields for bill
-                            $.each(data.carrier_details, function (key, val) {
-                                row_str += '"' + key + '": "' + val + '",';
-                            });
-
-                        }
-                        row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>...</a>",';
-                        if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                            row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                        var row_data_arr = bulk_data_arr[row_id].split('\t')
+                        if (typeof(row_data_arr[1]) !== 'undefined') { // this means it has tab separated UIDs in first col
+                            var row_addr = row_data_arr[1];
+                            var row_uid = row_data_arr[0];
                         }
                         else {
-                            row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                            var row_addr = row_data_arr[0];
+                            var row_uid = '-';
                         }
 
-                        row_str += '}';
+                        var ajax_url = "/loc8/match/nbn/" + safeUrl(row_addr);
+                        console.log(ajax_url);
+
+                        $.get(ajax_url, function (data, status) {
+
+                            var row_str = '{';
+                            row_str += '"uid": "' + row_uid + '",';
+                            row_str += '"search_str": "' + row_addr + '",';
+                            row_str += '"found_base": "' + data.results.matched_base_addr.long_name + '",';
+                            row_str += '"base_score": "<span ' + scoreToClass(data.results.matched_base_addr.match_score) + '>' + data.results.matched_base_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_base_addr.match_msg + ']",';
+                            row_str += '"found_sub": "' + data.results.matched_sub_addr.long_name + '",';
+                            row_str += '"sub_score": "<span ' + scoreToClass(data.results.matched_sub_addr.match_score) + '>' + data.results.matched_sub_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_sub_addr.match_msg + ']",';
+                            if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
+                                row_str += '"carrier_id": "' + data.results.matched_sub_addr.carrier_id + '",';
+                                row_str += '"serv_class": "' + data.results.matched_sub_addr.serv_class + '",';
+                                row_str += '"tech": "<span ' + techToClass(data.results.matched_sub_addr.tech, data.results.matched_sub_addr.serv_class) + '>' + data.results.matched_sub_addr.tech + '</span>",';
+                                row_str += '"rfs_date": "' + data.results.matched_sub_addr.params.rfs_date + '",';
+                                row_str += '"poi_name": "' + data.results.matched_sub_addr.params.poi_name + '",';
+                                row_str += '"poi_code": "' + data.results.matched_sub_addr.params.poi_code + '",';
+                                row_str += '"ada_code": "' + data.results.matched_sub_addr.params.ada_code + '",';
+                                row_str += '"disc_date": "' + data.results.matched_sub_addr.params.disc_date + '",';
+
+                                // add the extended address fields for bill
+                                $.each(data.carrier_details, function (key, val) {
+                                    row_str += '"' + key + '": "' + val + '",';
+                                });
+
+                            }
+                            row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>...</a>",';
+                            if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
+                                row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                            }
+                            else {
+                                row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                            }
+
+                            if (data.results.matched_base_addr.match_score > 20) {
+                                base_matches += 1;
+                            }
+
+                            if (data.results.matched_sub_addr.match_score > 20) {
+                                sub_matches += 1;
+                            }
+
+                            row_str += '}';
+                            var row_data = JSON.parse(row_str);
+
+                            var table = $('#grid').DataTable();
+                            table.row.add(row_data).draw(false);
+
+                            // the table was not re-drawing. this hack kicks it in the guts and makes it re-draw
+                            var grid_ht = $(window).height() - 135;
+                            $('.dataTables_scrollBody').height(grid_ht);
+
+                            // now update some stats
+                            perc_complete = Math.round(((row_id + 1) * 100) / bulk_data_arr.length);
+                            $("#perc_compl").text(perc_complete);
+
+                            perc_base = Math.round(((base_matches + 1) * 100) / bulk_data_arr.length);
+                            $("#perc_base").text(perc_base);
+
+                            perc_sub = Math.round(((sub_matches + 1) * 100) / bulk_data_arr.length);
+                            $("#perc_sub").text(perc_sub);
+
+                            var now_time = new Date();
+                            elapsed = Math.round((now_time - start_time) / 100) / 10;
+                            $("#elapsed").text(elapsed);
+
+                            // now do the next iteration or stop
+                            row_id++;
+                            var is_running = $("#run_status").val();
+
+                            if ((row_id < bulk_data_arr.length) && (is_running == "running")) {
+                                doNext(row_id);
+                            }
+                            else if (is_running == "running") {
+                                console.log("finished");
+                                $("#run_status").val("stopped");
+                                xhide($("#loader_div"));
+                            }
+
+                        });
+
+                    }
+                    else {
+                        row_str = '{}';
                         var row_data = JSON.parse(row_str);
 
                         var table = $('#grid').DataTable();
@@ -653,41 +723,23 @@
                         else if (is_running == "running") {
                             console.log("finished");
                             $("#run_status").val("stopped");
-                            $("#loader_div").hide();
+                            xhide($("#loader_div"));
                         }
-                    });
-
-                }
-                else {
-                    row_str = '{}';
-                    var row_data = JSON.parse(row_str);
-
-                    var table = $('#grid').DataTable();
-                    table.row.add(row_data).draw(false);
-
-                    // the table was not re-drawing. this hack kicks it in the guts and makes it re-draw
-                    var grid_ht = $(window).height() - 135;
-                    $('.dataTables_scrollBody').height(grid_ht);
-
-                    // now do the next iteration or stop
-                    row_id++;
-                    var is_running = $("#run_status").val();
-
-                    if ((row_id < bulk_data_arr.length) && (is_running == "running")) {
-                        doNext(row_id);
-                    }
-                    else if (is_running == "running") {
-                        console.log("finished");
-                        $("#run_status").val("stopped");
-                        $("#loader_div").hide();
                     }
                 }
+
+                var bulk_data = $.trim($("#text_data").val());
+                var bulk_data_arr = bulk_data.split('\n');
+                var perc_complete = 0;
+                var base_matches = 0;
+                var sub_matches = 0;
+                var start_time = new Date();
+                var elapsed = 0;
+
+                $("#records").text(bulk_data_arr.length);
+
+                doNext(0, bulk_data_arr[0]);
             }
-
-            var bulk_data = $.trim($("#text_data").val());
-            var bulk_data_arr = bulk_data.split('\n');
-
-            doNext(0, bulk_data_arr[0]);
 
         });
 
@@ -728,6 +780,13 @@
             {title: 'STATE_TERRITORY_CODE', data: 'STATE_TERRITORY_CODE', defaultContent: '-'},
             {title: 'LATITUDE', data: 'LATITUDE', defaultContent: '-'},
             {title: 'LONGITUDE', data: 'LONGITUDE', defaultContent: '-'},
+            {
+                title: 'CONNECTIVITY_SERVICING_AREA_IDENTIFIER',
+                data: 'CONNECTIVITY_SERVICING_AREA_IDENTIFIER',
+                defaultContent: '-'
+            },
+            {title: 'CONNECTIVITY_SERVICING_AREA_NAME', data: 'CONNECTIVITY_SERVICING_AREA_NAME', defaultContent: '-'}
+
 
         ];
 
@@ -826,6 +885,14 @@
         }
         return ' class = \'' + val + '_tech\' ';
     }
+
+    function xhide(elem) {
+        elem.css("visibility", "hidden");
+    };
+
+    function xshow(elem) {
+        elem.css("visibility", "visible");
+    };
 
 </script>
 </body>
