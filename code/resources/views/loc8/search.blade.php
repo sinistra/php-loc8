@@ -47,9 +47,10 @@
 
         #suggest_container {
             color: black;
-            width: 90%;
-            margin-left: 5%;
+            width: 100%;
+            padding-left: 37px;
             margin-top: 12px;
+            border: 0px red solid;
         }
 
         #header_div {
@@ -170,6 +171,26 @@
             height: 60%;
             overflow-y: auto;
         }
+
+        .btn-outline-secondary {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+            color: #d6d6d6;
+            border-color: #d6d6d6;
+        }
+
+        .btn-outline-secondary:hover {
+            background: transparent;
+            color: #3bd869;
+            border-color: #3bd869;
+        }
+
+        button:focus {
+            outline-width: 0px;
+        }
+
     </style>
 
 </head>
@@ -177,7 +198,8 @@
 
 <div id="header_div">
     <div id="logo_div">
-        <a href="/loc8"><img src="../images/logo-macquarie-telecom.png" style="height: 33px; margin: 8px 0px 0px 20px"></a>
+        <a href="/loc8"><img src="../images/logo-macquarie-telecom.png"
+                             style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
             <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
         </div>
@@ -197,11 +219,14 @@
                         <span style="font-size: 9px; padding-right: 2px;">ALIASs</span>
                     </div>
                     <button id="suggest_button" class="btn btn-outline-secondary" type="button"
-                            style="font-size: 13px; padding: 2px 10px; border-radius: 0px 14px 14px 0px;">search
+                            style="font-size: 11px; padding: 2px 10px; border-radius: 0px 14px 14px 0px;">search
                     </button>
                 </div>
+                <button id="bulk_button" class="btn btn-outline-secondary" type="button"
+                        onclick="location.href='http://localhost/loc8/bulk';"
+                        style="margin-left: 5px; font-size: 11px; padding: 2px 15px; border-radius: 14px;">bulk
+                </button>
             </div>
-
         </div>
     </div>
 </div>
@@ -210,15 +235,13 @@
     <div id="left_pane_wrapper" style="overflow: auto;">
         <div id="welcome_pane">
             <p style="font-size: 16px; padding-bottom: 10px;">Welcome</p>
-            <p>LOC-8 (pronounced locate) is here to help you match customer addresses to official (mostly NBN)
-                servicable locations. Simply start typing in the search bar above to see match suggestions.</p>
+            <p>LOC-8 assists in matching customer addresses to official (mostly NBN) servicable locations. Simply start
+                typing in the search bar above to see match suggestions.</p>
             <br>
             <p>For help, questions, or feature suggestions you can contact michael from the locate team at;
                 mhulowatyi@macquarietelecom.com.</p>
             <br>
             <p>All the best from the LOC-8 team.</p>
-            <br>
-            <p><a href="/loc8/visualise">LOC-8</a> responsibly!</p>
         </div>
         <div id="results_pane">
             <p style="font-size: 16px;">Search Results</p>
@@ -268,17 +291,17 @@
 <script>
     $(document).ready(function () {
 
-        var dv_wth = $('#suggest_container').width() - 200;
+        var dv_wth = $('#suggest_container').width() - 280;
         $('.easy-autocomplete').width(dv_wth);
 
-        var modal_ht = $(window).height() - 200;
+        var modal_ht = $(window).height() - 280;
         $('.modal-body').height(modal_ht);
 
         $(window).resize(function () {
-            var dv_wth = $('#suggest_container').width() - 200;
+            var dv_wth = $('#suggest_container').width() - 280;
             $('.easy-autocomplete').width(dv_wth);
 
-            var modal_ht = $(window).height() - 200;
+            var modal_ht = $(window).height() - 280;
             $('.modal-body').height(modal_ht);
         });
 
@@ -298,6 +321,21 @@
         $('#suggest_button').click(function () {
             doSubmitThings('button');
         });
+
+        <?php
+        if (isset($str)) {
+            echo "  $('#suggest_input').val('" . $str . "').trigger('change');\n";
+            echo "  $('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
+            echo "  setTimeout(function(){\n";
+            if ($type == "id") {
+                echo "      doSelectThings('enter');\n";
+            } else {
+                echo "      doSubmitThings('button');\n";
+            }
+            echo "	}, 600);\n";
+
+        }
+        ?>
 
     });
 
@@ -337,17 +375,39 @@
 
         map = new google.maps.Map(document.getElementById('map'), {
             zoom: 5,
-            center: myLatLng
+            center: myLatLng,
+            styles: [
+                {
+                    "elementType": "geometry.fill",
+                    "stylers": [{
+                        "saturation": -60
+                    }]
+                },
+                {
+                    "elementType": "labels.icon",
+                    "stylers": [{
+                        "saturation": -75
+                    }]
+                }
+            ]
         });
     }
 
-    function addPin(myLat, myLng, infoTxt, iconType) {
+    function addPin(myLat, myLng, infoTxt, serv_class, tech, mtId, iconType) {
 
-        var image1 = '../images/marker_black_filled.svg';
-        var image2 = '../images/marker_black_hollow.svg';
+        var image1 = 'h../images/marker_black_filled.svg';
+        if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
+            // colour coded marker if its in-service
+            var image2 = '../images/marker_' + tech + '_filled.svg';
+        }
+        else {
+            // hollow marker if not in service
+            var image2 = '../images/marker_black_hollow.svg';
+        }
+
 
         if (iconType == 1) { // main solid found marker
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 draggable: true,
@@ -362,10 +422,11 @@
 
         }
         else if (iconType == 2) { // hollow nearby markers
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 title: infoTxt,
+                marker_id: mtId,
                 icon: {
                     url: image2,
                     scaledSize: new google.maps.Size(24, 24),
@@ -374,7 +435,7 @@
             });
         }
         else {
-            marker = new google.maps.Marker({
+            var marker = new google.maps.Marker({
                 position: {lat: parseFloat(myLat), lng: parseFloat(myLng)},
                 map: map,
                 title: infoTxt,
@@ -382,6 +443,17 @@
                 animation: google.maps.Animation.DROP
             });
         }
+
+        marker.addListener('click', function () {
+            console.log(marker.marker_id);
+
+            $('#suggest_input').val(marker.marker_id).trigger('change');
+            $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
+            setTimeout(function () {
+                doSelectThings('nearby');
+            }, 300);
+
+        });
 
         return marker;
     }
@@ -437,7 +509,7 @@
             map.panTo(foundLoc);
         }
 
-        found_pin[0] = addPin(geoLat, geoLon, '', 1);
+        found_pin[0] = addPin(geoLat, geoLon, '', '', '', '', 1);
 
         google.maps.event.addListener(found_pin[0], 'dragend', function () {
             var dragPos = found_pin[0].getPosition();
@@ -470,29 +542,20 @@
 
             $.each(data, function (key, val) {
                 if (key == 0) {
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += '[ { "name": "' + val.nbn_st_addr + ',<br>' + val.nbn_suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "001", "children": [';
-                    }
-                    else {
-                        at_addr_data += '[ { "name": "' + val.nbn_st_addr + ',<br>' + val.nbn_suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "-' + data[1].mt_locid + '", "children": [';
-                    }
+                    at_addr_data += '[ { "name": "' + val.st_addr + ',<br>' + val.suburb + ' [' + (Object.keys(data).length - 1) + ']", "id": "001", "children": [';
                 }
                 else {
                     if (key != 1) {
                         at_addr_data += ', ';
                     }
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += ' { "name": "' + orDash(val.nbn_sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
-                    }
-                    at_addr_data += '{ "name": "MT: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "LOC: ' + orDash(val.nbn_locid) + '", "id": "2' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "TECH: ' + orDash(val.tech) + '", "id": "4' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "RFS: ' + orDash(val.rfs) + '", "id": "5' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "SERV-CLASS: ' + orDash(val.serv_class) + '", "id": "6' + val.mt_locid + '" }';
-                    if (Object.keys(data).length > 2) {
-                        at_addr_data += '] } ';
-                    }
+                    at_addr_data += ' { "name": "' + orDash(val.sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
+                    at_addr_data += '{ "name": "MT-LOC: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
+                    at_addr_data += '{ "name": "CARRIER-LOC: ' + orDash(val.carrier_locid) + '", "id": "2' + val.mt_locid + '" }, ';
+                    at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" } ';
+                    //at_addr_data += '{ "name": "TECH: '+ orDash(val.tech) +'", "id": "4' + val.mt_locid + '" }, ';
+                    //at_addr_data += '{ "name": "RFS: '+ orDash(val.rfs) +'", "id": "5' + val.mt_locid + '" }, ';
+                    //at_addr_data += '{ "name": "SERV-CLASS: '+ orDash(val.serv_class) +'", "id": "6' + val.mt_locid + '" }';
+                    at_addr_data += '] } ';
                 }
             });
             at_addr_data += ' ] } ]';
@@ -514,13 +577,11 @@
                         console.log(base_ajax_url);
                         var at_addr_data = '';
                         $.get(base_ajax_url, function (data, status) {
-                            var addr_detail = '<span style="font-size: 14px;">' + data[0].FORMATTED_ADDRESS_STRING + '</span><br><br>';
+                            var addr_detail = '<span style="font-size: 14px;">' + data[0].formatted_address_string + '</span><br><br>';
                             addr_detail += '<div style="font-size: 11px;">';
-                            addr_detail += '<span>LOC: ' + data[0].NBN_LOCID + '</span><br>';
-                            addr_detail += '<span>GNAF: ' + data[0].GNAF_PERSISTENT_IDENTIFIER + '</span><br>';
-                            addr_detail += '<span>TECH: ' + data[0].SERVICE_TYPE + '</span><br>';
-                            addr_detail += '<span>RFS: ' + data[0].READY_FOR_SERVICE_DATE + '</span><br>';
-                            addr_detail += '<span>SERV-CLASS: ' + data[0].SERVICE_CLASS + '</span><br>';
+                            addr_detail += '<span>MT-LOC: ' + data[0].id + '</span><br>';
+                            addr_detail += '<span>CARRIER-LOC: ' + data[0].nbn_locid + '</span><br>';
+                            addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
                             $.each(data[0], function (key, val) {
@@ -543,7 +604,7 @@
     function updateNearby(geoLat, geoLon) {
 
         // update nearby pane and nearby pins
-        var nearby_ajax_url = '/loc8/nearby_qry/' + geoLat + '/' + geoLon + '/50';
+        var nearby_ajax_url = '/loc8/nearby_qry/' + geoLat + '/' + geoLon + '/100';
         console.log(nearby_ajax_url);
         var nearby_data = '';
         $.get(nearby_ajax_url, function (data, status) {
@@ -554,8 +615,8 @@
                     nearby_data += ', ';
                 }
                 nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
-                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]';
-                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, 2);
+                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm : ' + val.tech + ']';
+                nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, val.serv_class, val.tech, val.mt, 2);
 
             });
             nearby_data += ' ] } ]';
@@ -569,6 +630,7 @@
                 function (event) {
                     console.log('tree_clicked');
                     var node = event.node;
+                    console.log(node.mt);
                     $('#suggest_input').val(node.mt).trigger('change');
                     $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
                     setTimeout(function () {
@@ -594,7 +656,7 @@
 
         var value = $('#suggest_input').val();
         $('#suggest_input').blur();
-        var geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + value + '&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM';
+        var geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + value + '&region=au&key=AIzaSyDcE2tHUuIsXqNLwIgtoJ16D-N5b1F7XFM';
         console.log(geocode_url);
         $.get(geocode_url, function (data, status) {
 
@@ -644,9 +706,10 @@
             zoom_type = '';
         }
 
+        console.log(loc_str);
         loc_str = loc_str.split('|')[0];
         clearWelcome();
-        updateResults(loc_str, 'NBN PFL Match');
+        updateResults(loc_str, 'LOC8 DB Match');
         updateAtAddr();
         updateNearby(geo_loc.lat, geo_loc.lon);
         updateFoundPin(geo_loc.lat, geo_loc.lon, zoom_type);

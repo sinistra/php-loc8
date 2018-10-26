@@ -1,0 +1,69 @@
+PUT pfl
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "autocomplete": {
+          "tokenizer": "autocomplete"
+        },
+        "autocomplete_search": {
+          "tokenizer": "whitespace"
+        }
+      },
+      "tokenizer": {
+        "autocomplete": {
+          "type": "edge_ngram",
+          "min_gram": 1,
+          "max_gram": 50,
+          "token_chars": [
+            "letter",
+            "digit",
+            "punctuation",
+            "symbol"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "alias_address": {
+          "type": "text",
+          "analyzer": "autocomplete",
+          "search_analyzer": "autocomplete_search"
+        },
+        "official_address": {
+          "type": "text"
+        },
+        "base_hash": {
+          "type": "text"
+        },
+        "carrier_name": {
+          "type": "text"
+        },
+        "carrier_locid": {
+          "type": "text"
+        },
+        "mt_locid": {
+          "type": "text"
+        },
+        "gnaf_locid": {
+          "type": "text"
+        },
+        "params": {
+          "type": "object"
+        },
+        "geo_location": {
+          "type": "geo_point"
+        },
+        "alias_type": {
+          "type": "integer"
+        },
+        "pg_id": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

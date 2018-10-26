@@ -76,19 +76,18 @@
         <td width="25%" valign="top">
             <div style="height: 350px;">
                 <br>
-                <div>
-                    <button type="button" id="start_btn">start</button>
-                </div>
-                <br>
-                <div>
-                    <button type="button" id="stop_btn">stop</button>
-                </div>
+                <div>elastic data loader:</span></div>
                 <br>
                 <div>from:<br><input type="text" id="val_from"></div>
                 <br>
                 <div>to:<br><input type="text" id="val_to"></div>
                 <br>
                 <div>status:<br><input type="text" id="run_status" value="stopped" disabled></div>
+                <br>
+                <div>
+                    <button type="button" id="start_btn">start</button>&nbsp;<button type="button" id="stop_btn">stop
+                    </button>
+                </div>
                 <br><br>
                 <div id="loader_div" class="spinner">
                     <div class="dot1"></div>
@@ -128,10 +127,11 @@
 
             function doNext(batch_from, batch_to) {
 
-                console.log("batch: " + batch_from + " - " + batch_to + " starting");
+                //console.log("batch: "+batch_from+" - "+batch_to+" starting");
                 var ajax_url = "/loc8/load/" + batch_from + "/" + batch_to;
+                console.log(ajax_url);
                 $.get(ajax_url, function (data, status) {
-                    console.log("batch: " + batch_from + " - " + batch_to + " returned");
+                    //console.log("batch: "+batch_from+" - "+batch_to+" returned");
                     batch_finish_time = moment().format("YYYY-MM-DD h:mm:ss");
                     var row_str = "<tr><td>" + batch_finish_time + "</td><td>" + data + "</td></tr>";
                     $("#hdr_row").after($(row_str));
@@ -139,7 +139,7 @@
                     batch_from += val_incr;
                     batch_to = Math.min((batch_from + val_incr - 1), val_to);
                     var is_running = $("#run_status").val();
-                    if ((batch_from <= val_to) && (is_running == "running")) {
+                    if ((batch_from <= val_to) && (is_running == "running") && (data.indexOf("[errors]") == -1)) {
                         doNext(batch_from, batch_to);
                     }
                     else if (is_running == "running") {

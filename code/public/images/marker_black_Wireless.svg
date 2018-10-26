@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="372px" height="512px" viewBox="0 0 372 512" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.2 (67145) - http://www.bohemiancoding.com/sketch -->
+    <title>marker_black_filled</title>
+    <desc>Created with Sketch.</desc>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="marker_black_filled" fill="#237B35" fill-rule="nonzero">
+            <path d="M186,0 C83.755,0 0.573,83.182 0.573,185.426 C0.573,312.314 166.512,498.593 173.577,506.461 C180.213,513.852 191.799,513.839 198.423,506.461 C205.488,498.593 371.427,312.314 371.427,185.426 C371.425,83.182 288.244,0 186,0 Z M186,278.719 C134.558,278.719 92.708,236.868 92.708,185.426 C92.708,133.984 134.559,92.134 186,92.134 C237.441,92.134 279.291,133.985 279.291,185.427 C279.291,236.869 237.441,278.719 186,278.719 Z" id="Shape"></path>
+        </g>
+    </g>
+</svg>
