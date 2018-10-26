@@ -47,9 +47,10 @@
 
         #suggest_container {
             color: black;
-            width: 90%;
-            margin-left: 5%;
+            width: 100%;
+            padding-left: 37px;
             margin-top: 12px;
+            border: 0px red solid;
         }
 
         #header_div {
@@ -171,6 +172,21 @@
             overflow-y: auto;
         }
 
+        .btn-outline-secondary {
+            font-size: 11px;
+            font-family: "Helvetica Neue", Helvetica, Arial;
+            letter-spacing: 1px;
+            font-weight: 200;
+            color: #d6d6d6;
+            border-color: #d6d6d6;
+        }
+
+        .btn-outline-secondary:hover {
+            background: transparent;
+            color: #3bd869;
+            border-color: #3bd869;
+        }
+
         button:focus {
             outline-width: 0px;
         }
@@ -182,7 +198,7 @@
 
 <div id="header_div">
     <div id="logo_div">
-        <a href="/loc8"><img src="http://localhost/images/logo-macquarie-telecom.png"
+        <a href="/loc8"><img src="../images/logo-macquarie-telecom.png"
                              style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
             <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
@@ -203,11 +219,14 @@
                         <span style="font-size: 9px; padding-right: 2px;">ALIASs</span>
                     </div>
                     <button id="suggest_button" class="btn btn-outline-secondary" type="button"
-                            style="font-size: 13px; padding: 2px 10px; border-radius: 0px 14px 14px 0px;">search
+                            style="font-size: 11px; padding: 2px 10px; border-radius: 0px 14px 14px 0px;">search
                     </button>
                 </div>
+                <button id="bulk_button" class="btn btn-outline-secondary" type="button"
+                        onclick="location.href='http://localhost/loc8/bulk';"
+                        style="margin-left: 5px; font-size: 11px; padding: 2px 15px; border-radius: 14px;">bulk
+                </button>
             </div>
-
         </div>
     </div>
 </div>
@@ -216,17 +235,13 @@
     <div id="left_pane_wrapper" style="overflow: auto;">
         <div id="welcome_pane">
             <p style="font-size: 16px; padding-bottom: 10px;">Welcome</p>
-            <p>LOC-8 (pronounced locate) is here to help you match customer addresses to official (mostly NBN)
-                servicable locations. Simply start typing in the search bar above to see match suggestions.</p>
+            <p>LOC-8 assists in matching customer addresses to official (mostly NBN) servicable locations. Simply start
+                typing in the search bar above to see match suggestions.</p>
             <br>
             <p>For help, questions, or feature suggestions you can contact michael from the locate team at;
                 mhulowatyi@macquarietelecom.com.</p>
             <br>
             <p>All the best from the LOC-8 team.</p>
-            <br>
-            <p><a href="/loc8/bulk">>>> Click here to LOC8 in BULK <<<</a></p>
-            <br>
-            <p>LOC-8 responsibly!</p>
         </div>
         <div id="results_pane">
             <p style="font-size: 16px;">Search Results</p>
@@ -276,17 +291,17 @@
 <script>
     $(document).ready(function () {
 
-        var dv_wth = $('#suggest_container').width() - 200;
+        var dv_wth = $('#suggest_container').width() - 280;
         $('.easy-autocomplete').width(dv_wth);
 
-        var modal_ht = $(window).height() - 200;
+        var modal_ht = $(window).height() - 280;
         $('.modal-body').height(modal_ht);
 
         $(window).resize(function () {
-            var dv_wth = $('#suggest_container').width() - 200;
+            var dv_wth = $('#suggest_container').width() - 280;
             $('.easy-autocomplete').width(dv_wth);
 
-            var modal_ht = $(window).height() - 200;
+            var modal_ht = $(window).height() - 280;
             $('.modal-body').height(modal_ht);
         });
 
@@ -309,13 +324,13 @@
 
         <?php
         if (isset($str)) {
-            echo "	$('#suggest_input').val('" . $str . "').trigger('change');\n";
-            echo "	$('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
-            echo "	setTimeout(function(){\n";
+            echo "  $('#suggest_input').val('" . $str . "').trigger('change');\n";
+            echo "  $('#suggest_input').trigger( jQuery.Event( 'keyup', { keyCode: 8, which: 8 } ) );\n";
+            echo "  setTimeout(function(){\n";
             if ($type == "id") {
-                echo "		doSelectThings('enter');\n";
+                echo "      doSelectThings('enter');\n";
             } else {
-                echo "		doSubmitThings('button');\n";
+                echo "      doSubmitThings('button');\n";
             }
             echo "	}, 600);\n";
 
@@ -380,14 +395,14 @@
 
     function addPin(myLat, myLng, infoTxt, serv_class, tech, mtId, iconType) {
 
-        var image1 = 'http://localhost/images/marker_black_filled.svg';
+        var image1 = 'h../images/marker_black_filled.svg';
         if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
             // colour coded marker if its in-service
-            var image2 = 'http://localhost/images/marker_' + tech + '_filled.svg';
+            var image2 = '../images/marker_' + tech + '_filled.svg';
         }
         else {
             // hollow marker if not in service
-            var image2 = 'http://localhost/images/marker_black_hollow.svg';
+            var image2 = '../images/marker_black_hollow.svg';
         }
 
 

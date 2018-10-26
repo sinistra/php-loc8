@@ -8,6 +8,8 @@
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
+          integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css"
           integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ URL::asset('css/datatables.css') }}">
@@ -156,7 +158,8 @@
             background: #292929;
             color: #ffffff;
             border-radius: 14px;
-            padding: 2px 16px;
+            padding: 3px 16px;
+            margin-right: 5px;
         }
 
         .side_btn:hover {
@@ -202,6 +205,7 @@
         }
 
         .grid_link {
+            padding-left: 15px;
             color: black;
         }
 
@@ -467,20 +471,17 @@
             <p style="font-size: 16px; padding-bottom: 10px;">Bulk Search</p>
             <br>
             <div>
-                <button type="button" id="show_input_btn" class="side_btn">input</button>&nbsp;<button type="button"
-                                                                                                       id="show_res_btn"
-                                                                                                       class="side_btn">
-                    results
-                </button>
+                <button type="button" id="show_input_btn" class="side_btn">input</button>
+                <button type="button" id="show_res_btn" class="side_btn">results</button>
+                <button type="button" id="stop_btn" class="side_btn">stop</button>
             </div>
             <br>
             <div>
-                <button type="button" id="start_btn" class="side_btn">start</button>&nbsp;<button type="button"
-                                                                                                  id="stop_btn"
-                                                                                                  class="side_btn">stop
+                <button type="button" id="start_btn" class="side_btn" style="padding-left: 86px; padding-right: 86px;">
+                    start
                 </button>
             </div>
-            <br>
+            <br><br>
             <div><input type="text" id="run_status" value="stopped" disabled></div>
             <br><br>
             <div id="loader_div" class="spinner" style="visibility: hidden;">
@@ -489,7 +490,7 @@
             </div>
         </div>
         <div id="results_pane">
-            <p style="font-size: 16px;">Search Results</p>
+            <p style="font-size: 16px;">Search Results</i></p>
             <div id="results_area">
                 <br>
                 <div class="stats_div"><span id="records" class="stats">0</span><span>records</span></div>
@@ -497,6 +498,10 @@
                 <div class="stats_div"><span id="perc_base" class="stats">0</span><span>% base matched</span></div>
                 <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
                 <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
+                <button type="button" id="map_btn" class="side_btn" onclick="location.href='http://localhost/loc8/';"
+                        style=" position: absolute; left: 249px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
+                    <i class="fas fa-angle-double-left"></i> map
+                </button>
             </div>
         </div>
     </div>
@@ -506,7 +511,7 @@
         </div>
         <div id="input_div">
             <div id="input_form" border="1" width="100%">
-                <span>To match addresses in bulk simply paste your data in the box below and then hit 'Start'.</span>
+                <span>To match addresses in bulk simply paste your data in the box below and then hit 'start'.</span>
                 <br><span>.. data can be either;</span>
                 <ul>
                     <li>A list of UIDs and Addresses (<i>in that order - tab separated</i>)</li>
@@ -646,12 +651,13 @@
                                 });
 
                             }
-                            row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>...</a>",';
+                            row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fas fa-align-left\'></i></a>",';
+
                             if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                                row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                                row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
                             }
                             else {
-                                row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'>@</a>"';
+                                row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
                             }
 
                             if (data.results.matched_base_addr.match_score > 20) {
@@ -763,29 +769,29 @@
             {title: 'ADA Code', data: 'ada_code', width: '80px', defaultContent: '-'},
             {title: 'Disc Date', data: 'disc_date', width: '80px', defaultContent: '-'},
 
-            {title: 'UNIT_NUMBER', data: 'UNIT_NUMBER', defaultContent: '-'},
-            {title: 'UNIT_TYPE_CODE', data: 'UNIT_TYPE_CODE', defaultContent: '-'},
-            {title: 'LEVEL_NUMBER', data: 'LEVEL_NUMBER', defaultContent: '-'},
-            {title: 'LEVEL_TYPE_CODE', data: 'LEVEL_TYPE_CODE', defaultContent: '-'},
-            {title: 'ADDRESS_SITE_NAME', data: 'ADDRESS_SITE_NAME', defaultContent: '-'},
-            {title: 'ROAD_NUMBER_1', data: 'ROAD_NUMBER_1', defaultContent: '-'},
-            {title: 'ROAD_NUMBER_2', data: 'ROAD_NUMBER_2', defaultContent: '-'},
-            {title: 'LOT_NUMBER', data: 'LOT_NUMBER', defaultContent: '-'},
-            {title: 'ROAD_NAME', data: 'ROAD_NAME', defaultContent: '-'},
-            {title: 'ROAD_SUFFIX_CODE', data: 'ROAD_SUFFIX_CODE', defaultContent: '-'},
-            {title: 'ROAD_TYPE_CODE', data: 'ROAD_TYPE_CODE', defaultContent: '-'},
-            {title: 'LOCALITY_NAME', data: 'LOCALITY_NAME', defaultContent: '-'},
-            {title: 'SECONDARY_COMPLEX_NAME', data: 'SECONDARY_COMPLEX_NAME', defaultContent: '-'},
-            {title: 'POSTCODE', data: 'POSTCODE', defaultContent: '-'},
-            {title: 'STATE_TERRITORY_CODE', data: 'STATE_TERRITORY_CODE', defaultContent: '-'},
-            {title: 'LATITUDE', data: 'LATITUDE', defaultContent: '-'},
-            {title: 'LONGITUDE', data: 'LONGITUDE', defaultContent: '-'},
+            {title: 'unit_number', data: 'unit_number', defaultContent: '-'},
+            {title: 'unit_type_code', data: 'unit_type_code', defaultContent: '-'},
+            {title: 'level_number', data: 'level_number', defaultContent: '-'},
+            {title: 'level_type_code', data: 'level_type_code', defaultContent: '-'},
+            {title: 'address_site_name', data: 'address_site_name', defaultContent: '-'},
+            {title: 'road_number_1', data: 'road_number_1', defaultContent: '-'},
+            {title: 'road_number_2', data: 'road_number_2', defaultContent: '-'},
+            {title: 'lot_number', data: 'lot_number', defaultContent: '-'},
+            {title: 'road_name', data: 'road_name', defaultContent: '-'},
+            {title: 'road_suffix_code', data: 'road_suffix_code', defaultContent: '-'},
+            {title: 'road_type_code', data: 'road_type_code', defaultContent: '-'},
+            {title: 'locality_name', data: 'locality_name', defaultContent: '-'},
+            {title: 'secondary_complex_name', data: 'secondary_complex_name', defaultContent: '-'},
+            {title: 'postcode', data: 'postcode', defaultContent: '-'},
+            {title: 'state_territory_code', data: 'state_territory_code', defaultContent: '-'},
+            {title: 'latitude', data: 'latitude', defaultContent: '-'},
+            {title: 'longitude', data: 'longitude', defaultContent: '-'},
             {
-                title: 'CONNECTIVITY_SERVICING_AREA_IDENTIFIER',
-                data: 'CONNECTIVITY_SERVICING_AREA_IDENTIFIER',
+                title: 'connectivity_servicing_area_identifier',
+                data: 'connectivity_servicing_area_identifier',
                 defaultContent: '-'
             },
-            {title: 'CONNECTIVITY_SERVICING_AREA_NAME', data: 'CONNECTIVITY_SERVICING_AREA_NAME', defaultContent: '-'}
+            {title: 'connectivity_servicing_area_name', data: 'connectivity_servicing_area_name', defaultContent: '-'}
 
 
         ];
