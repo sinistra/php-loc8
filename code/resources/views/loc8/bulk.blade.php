@@ -498,7 +498,7 @@
                 <div class="stats_div"><span id="perc_base" class="stats">0</span><span>% base matched</span></div>
                 <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
                 <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
-                <button type="button" id="map_btn" class="side_btn" onclick="location.href='http://localhost/loc8/';"
+                <button type="button" id="map_btn" class="side_btn" onclick="location.href='/loc8/';"
                         style=" position: absolute; left: 249px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
                     <i class="fas fa-angle-double-left"></i> map
                 </button>

@@ -223,7 +223,7 @@
                     </button>
                 </div>
                 <button id="bulk_button" class="btn btn-outline-secondary" type="button"
-                        onclick="location.href='http://localhost/loc8/bulk';"
+                        onclick="location.href='/loc8/bulk';"
                         style="margin-left: 5px; font-size: 11px; padding: 2px 15px; border-radius: 14px;">bulk
                 </button>
             </div>
