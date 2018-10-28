@@ -198,7 +198,7 @@
 
 <div id="header_div">
     <div id="logo_div">
-        <a href="/loc8"><img src="../images/logo-macquarie-telecom.png"
+        <a href="/loc8"><img src="/images/logo-macquarie-telecom.png"
                              style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
             <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
@@ -223,7 +223,7 @@
                     </button>
                 </div>
                 <button id="bulk_button" class="btn btn-outline-secondary" type="button"
-                        onclick="location.href='http://localhost/loc8/bulk';"
+                        onclick="location.href='/loc8/bulk';"
                         style="margin-left: 5px; font-size: 11px; padding: 2px 15px; border-radius: 14px;">bulk
                 </button>
             </div>
@@ -395,14 +395,14 @@
 
     function addPin(myLat, myLng, infoTxt, serv_class, tech, mtId, iconType) {
 
-        var image1 = 'h../images/marker_black_filled.svg';
+        var image1 = '/images/marker_black_filled.svg';
         if ((serv_class != 0) && (serv_class != 10) && (serv_class != 20) && (serv_class != 30)) {
             // colour coded marker if its in-service
-            var image2 = '../images/marker_' + tech + '_filled.svg';
+            var image2 = '/images/marker_' + tech + '_filled.svg';
         }
         else {
             // hollow marker if not in service
-            var image2 = '../images/marker_black_hollow.svg';
+            var image2 = '/images/marker_black_hollow.svg';
         }
 
 
