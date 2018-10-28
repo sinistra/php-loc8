@@ -900,6 +900,14 @@
         elem.css("visibility", "visible");
     };
 
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        var r = confirm('Are you sure you want to leave the page?\nall results will be lost.!');
+        if (r != true) {
+            history.go(1);
+        }
+    };
+
 </script>
 </body>
 </html>
