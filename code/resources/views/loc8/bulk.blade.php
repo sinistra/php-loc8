@@ -901,12 +901,12 @@
     };
 
     history.pushState(null, null, location.href);
-    window.onpopstate = function () {
+    window.addEventListener("popstate", function(event) {
         var r = confirm('Are you sure you want to leave the page?\nall results will be lost.!');
         if (r != true) {
-            history.go(1);
+            history.pushState(null, null, location.href);
         }
-    };
+    });
 
 </script>
 </body>
