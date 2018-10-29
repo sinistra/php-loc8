@@ -5,6 +5,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/datatables.js') }}"></script>
 
+    <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
@@ -67,7 +68,7 @@
 
         .stats {
             display: inline-block;
-            width: 70px;
+            width: 85px;
             font-size: 16pt;
             font-weight: 100;
             font-style: normal;
@@ -499,7 +500,7 @@
                 <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
                 <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
                 <button type="button" id="map_btn" class="side_btn" onclick="location.href='/loc8/';"
-                        style=" position: absolute; left: 249px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
+                        style=" position: absolute; left: 248px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
                     <i class="fas fa-angle-double-left"></i> map
                 </button>
             </div>
