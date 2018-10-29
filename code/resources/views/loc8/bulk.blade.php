@@ -224,6 +224,7 @@
         div.dataTables_wrapper div.dataTables_filter input {
             border-radius: 14px;
             padding: 1px 10px;
+            width: 148px;
         }
 
         .btn-group > .btn-group:not(:last-child) > .btn, .btn-group > .btn:not(:last-child):not(.dropdown-toggle) {
