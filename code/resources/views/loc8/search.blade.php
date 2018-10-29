@@ -82,7 +82,7 @@
 
         #left_pane_wrapper {
             letter-spacing: 1px;
-            font-weight: 200;
+            font-weight: 100;
             font-size: 10px;
             color: white;
             background: #292929;
