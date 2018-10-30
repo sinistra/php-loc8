@@ -18,8 +18,10 @@
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
     <script type="text/javascript" src="{{ URL::asset('js/tree.jquery.js') }}"></script>
 
-    <link rel="stylesheet" href="{{ URL::asset('css/app.css?v2') }}"/>
+    <link rel="stylesheet" href="{{ URL::asset( autoversion('css/app.css') ) }}"/>
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
