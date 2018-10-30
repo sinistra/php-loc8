@@ -37,7 +37,7 @@
         }
 
         body {
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
         }
 
         p {
@@ -178,7 +178,7 @@
             letter-spacing: 1px;
             font-weight: 200;
             font-size: 15px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
         }
 
         .modal-body {
@@ -188,7 +188,7 @@
 
         .btn-outline-secondary {
             font-size: 11px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 200;
             color: #d6d6d6;

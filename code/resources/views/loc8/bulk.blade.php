@@ -23,7 +23,7 @@
 
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
           integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css"
@@ -40,7 +40,7 @@
         }
 
         body {
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
         }
 
         table {
@@ -50,7 +50,7 @@
         th {
             background: #292929;
             color: #ffffff;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 200;
         }
@@ -168,7 +168,7 @@
             letter-spacing: 1px;
             font-weight: 200;
             font-size: 15px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
         }
 
         .modal-body {
@@ -178,7 +178,7 @@
 
         .side_btn {
             font-size: 11px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 100;
             background: #292929;
@@ -202,14 +202,14 @@
 
         #input_form {
             font-size: 11px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 400;
         }
 
         .btn {
             font-size: 11px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 200;
             margin-right: 3px;
@@ -277,7 +277,7 @@
 
         .dataTables_filter {
             font-size: 11px;
-            font-family: "Helvetica Neue", Helvetica, Arial;
+            font-family: 'Open Sans', sans-serif;
             letter-spacing: 1px;
             font-weight: 200;
         }
