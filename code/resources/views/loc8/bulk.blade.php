@@ -224,7 +224,7 @@
         div.dataTables_wrapper div.dataTables_filter input {
             border-radius: 14px;
             padding: 1px 10px;
-            width: 148px;
+            width: 167px;
         }
 
         .btn-group > .btn-group:not(:last-child) > .btn, .btn-group > .btn:not(:last-child):not(.dropdown-toggle) {
@@ -520,7 +520,7 @@
                     <li>A list of Addresses only</li>
                 </ul>
                 <textarea id="text_data"
-                          style="font-family: courier; width:100%; height: 400px; font-size: 10pt;"></textarea>
+                          style="font-family: courier; width:100%; height: calc(100vh - 120px); font-size: 10pt;"></textarea>
             </div>
         </div>
     </div>
