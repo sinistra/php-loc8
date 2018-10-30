@@ -90,6 +90,10 @@
             border: 0px red solid;
         }
 
+        #start_btn {
+            width: 204px;
+        }
+
         #left_pane_wrapper {
             letter-spacing: 1px;
             font-weight: 100;
@@ -160,7 +164,7 @@
             font-size: 11px;
             font-family: "Helvetica Neue", Helvetica, Arial;
             letter-spacing: 1px;
-            font-weight: 200;
+            font-weight: 100;
             background: #292929;
             color: #ffffff;
             border-radius: 14px;
