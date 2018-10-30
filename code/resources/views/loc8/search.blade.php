@@ -1,6 +1,20 @@
 <!doctype html>
 <html lang="{{ app()->getLocale() }}">
 <head>
+
+    <?php
+        function autoversion($url) {
+            $filename = $url;
+            if (file_exists($filename)) {
+                // echo "$filename was last modified: " . date ("FdYHis", filemtime($filename));
+                $filename = $url . "?v=" . date ("dYHis", filemtime($filename));
+                echo $filename;
+            }
+        }
+    ?>
+
+    <link href="<?php autoversion('css/app.css'); ?>" rel="stylesheet">
+    
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
@@ -12,10 +26,10 @@
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/jqtree.css') }}"/>
-    <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css"
           integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
 
+    
     <style>
         html, body {
             height: 100%;
