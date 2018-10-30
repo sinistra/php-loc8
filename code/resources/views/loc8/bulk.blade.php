@@ -1,11 +1,25 @@
 <!doctype html>
 <html lang="{{ app()->getLocale() }}">
 <head>
+
+    <?php
+        function autoversion($url) {
+            $filename = $url;
+            if (file_exists($filename)) {
+                // echo "$filename was last modified: " . date ("FdYHis", filemtime($filename));
+                $filename = $url . "?v=" . date ("dYHis", filemtime($filename));
+                echo $filename;
+            }
+        }
+    ?>
+
+    <link href="<?php autoversion('css/app.css'); ?>" rel="stylesheet">
+
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/datatables.js') }}"></script>
 
-    <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/>
+    <!-- <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/> -->
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
