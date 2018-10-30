@@ -4,6 +4,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/datatables.js') }}"></script>
+    <script src="dist/perfect-scrollbar.js"></script>
 
     <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/>
     <link rel="stylesheet"
@@ -51,6 +52,10 @@
         a:hover {
             color: grey;
             text-decoration: none;
+        }
+
+        #map_btn {
+            opacity: 0.75;
         }
 
         #header_div {
@@ -520,7 +525,7 @@
                     <li>A list of Addresses only</li>
                 </ul>
                 <textarea id="text_data"
-                          style="font-family: courier; width:100%; height: calc(100vh - 120px); font-size: 10pt;"></textarea>
+                          style="font-family: courier; width:100%; min-height: calc(100vh - 120px); font-size: 10pt;"></textarea>
             </div>
         </div>
     </div>
@@ -550,6 +555,8 @@
 
 <script>
     $(document).ready(function () {
+
+        var perfectScroll = new PerfectScrollbar('#left_pane_wrapper');
 
         var modal_ht = $(window).height() - 200;
         $('.modal-body').height(modal_ht);
