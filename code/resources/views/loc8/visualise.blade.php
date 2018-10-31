@@ -71,7 +71,7 @@
 
         #left_pane_wrapper {
             letter-spacing: 1px;
-            font-weight: 100;
+            font-weight: 200;
             font-size: 10px;
             color: white;
             background: #292929;
@@ -170,7 +170,7 @@
     <div id="logo_div">
         <a href="/loc8"><img src="../images/logo-macquarie-telecom.png" style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
-            <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
+            <span style="color: #dedede; font-size: 18pt; font-weight: 200; font-style: normal; letter-spacing: 2px;">LOC-8</span>
         </div>
     </div>
     <div id="searchbar_div">

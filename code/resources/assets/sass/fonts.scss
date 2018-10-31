@@ -1,26 +1,21 @@
-@font-face {
- font-family: 'Helvetica Neue';
- font-style: normal;
- src: url('/fonts/HelveticaNeue/HelveticaNeue.woff') format('woff'),
+/* Fonts includer */
+@mixin font-face($font-family, $font-file, $weight, $style: "normal") {
+  @font-face {
+    font-family: $font-family;
+    src: url($font-file + '.eot');
+    src: url($font-file + '.eot?#iefix') format("embedded-opentype"),
+         url($font-file + '.woff') format("truetype"),
+         url($font-file + '.woff2') format("woff"),
+         url($font-file + '.ttf') format("woff2"),
+         url($font-file + '.ttf') format(".svg#" + $font-file);
+    font-weight: $weight;
+    font-style: $style;
+  }
 }
 
-@font-face {
- font-family: 'Helvetica Neue';
- font-weight: 100;
- font-style: normal;
- src: url('/fonts/HelveticaNeue/HelveticaNeue-UltraLight.woff') format('woff'),
-}
-
-@font-face {
- font-family: 'Helvetica Neue';
- font-weight: 200;
- font-style: normal;
- src: url('/fonts/HelveticaNeue/HelveticaNeue-Light.woff') format('woff'),
-}
-
-@font-face {
- font-family: 'Helvetica Neue';
- font-weight: bold;
- font-style: normal;
- src: url('/fonts/HelveticaNeue/HelveticaNeue-Bold.woff') format('woff'),
-}
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue-bold', 700);
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue-medium', 500);
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue', 400);
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue-light', 300);
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue-thin', 200);
+@include font-face("HelveticaNeue", '/fonts/helveticaneue/helveticaneue-ultralight', 100);

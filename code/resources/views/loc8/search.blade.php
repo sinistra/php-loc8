@@ -12,7 +12,9 @@
             }
         }
     ?>
-
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
@@ -20,9 +22,6 @@
 
     <link rel="stylesheet" href="{{ URL::asset( autoversion('css/app.css') ) }}"/>
 
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/jqtree.css') }}"/>
@@ -37,7 +36,11 @@
         }
 
         body {
-            font-family: 'Open Sans', sans-serif;
+            font-family: "HelveticaNeue", sans-serif;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: subpixel-antialiased;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         p {
@@ -95,7 +98,7 @@
 
         #left_pane_wrapper {
             letter-spacing: 1px;
-            font-weight: 100;
+            font-weight: 300;
             font-size: 10px;
             color: white;
             background: #292929;
@@ -168,7 +171,7 @@
 
         .modal-content {
             letter-spacing: 1px;
-            font-weight: 200;
+            font-weight: 300;
             font-size: 10px;
             color: white;
             background: #292929;
@@ -176,9 +179,9 @@
 
         .modal-title {
             letter-spacing: 1px;
-            font-weight: 200;
+            font-weight: 300;
             font-size: 15px;
-            font-family: 'Open Sans', sans-serif;
+            font-family: "HelveticaNeue", sans-serif;
         }
 
         .modal-body {
@@ -188,9 +191,9 @@
 
         .btn-outline-secondary {
             font-size: 11px;
-            font-family: 'Open Sans', sans-serif;
+            font-family: "HelveticaNeue", sans-serif;
             letter-spacing: 1px;
-            font-weight: 200;
+            font-weight: 300;
             color: #d6d6d6;
             border-color: #d6d6d6;
         }
@@ -215,7 +218,7 @@
         <a href="/loc8"><img src="/images/logo-macquarie-telecom.png"
                              style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
-            <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
+            <span style="color: #dedede; font-size: 18pt; font-weight: 200; font-style: normal; letter-spacing: 2px;">LOC-8</span>
         </div>
     </div>
     <div id="searchbar_div">
