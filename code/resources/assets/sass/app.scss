@@ -9,27 +9,39 @@ button {
   border-style: solid;
 }
 
+#content_div {
+  min-width: calc(100% - 320px);
+}
+
+.table thead th{
+  // white-space: nowrap;
+}
+
 /* Turn on custom 8px wide scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
   background-color: rgba(0,0,0,0);
   -webkit-border-radius: 100px; /* make scroll area have circular edges */
 }
 
 /* apply hover effect for both scrollbar area, and scrollbar 'thumb' */
 ::-webkit-scrollbar:hover {
-  background-color: rgba(0, 0, 0, 0.09);
+  background-color: rgba(0, 0, 0, 0);
 }
 
-/* set scrollbar color and set to hidden */
-::-webkit-scrollbar-thumb:vertical {
+::-webkit-scrollbar-thumb
+{
+	border-radius: 10px;
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+  background-color: #555;
   background: rgba(255,255,255, 0.7);
   -webkit-border-radius: 100px;
   visibility: hidden;
 }
 
 /* set scrollbar color to a whiter shade when clicked */
-::-webkit-scrollbar-thumb:vertical:active {
+::-webkit-scrollbar-thumb:active {
   background: rgba(255,255,255, 0.9); /* Some darker color when you click it */
   -webkit-border-radius: 100px;
 }

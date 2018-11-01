@@ -1,25 +1,22 @@
 <!doctype html>
 <html lang="{{ app()->getLocale() }}">
 <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="{{ URL::asset('js/datatables.js') }}"></script>
 
     <?php
         function autoversion($url) {
             $filename = $url;
             if (file_exists($filename)) {
                 // echo "$filename was last modified: " . date ("FdYHis", filemtime($filename));
-                $filename = $url . "?v=" . date ("dYHis", filemtime($filename));
-                return $filename;
+                $date = "?v=" . date ("dYHis", filemtime($filename));
+                echo URL::asset($filename) . $date;
             }
         }
     ?>
 
-
-
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="{{ URL::asset('js/datatables.js') }}"></script>
-
-    <link rel="stylesheet" href="{{ URL::asset( autoversion('css/app.css') ) }}"/>
+    <link rel="stylesheet" href="{{ autoversion('css/app.css') }}"/>
 
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
@@ -163,7 +160,7 @@
         .modal-content {
             letter-spacing: 1px;
             font-weight: 300;
-            font-size: 10px;
+            font-size: 11px;
             color: white;
             background: #292929;
         }
@@ -488,7 +485,7 @@
 <body>
 
 <div id="main_wrapper">
-    <div id="left_pane_wrapper" style="overflow: auto;">
+    <div id="left_pane_wrapper">
         <div id="header_div">
             <div id="logo_div">
                 <a href="/loc8"><img src="../images/logo-macquarie-telecom.png"
@@ -498,41 +495,43 @@
                 </div>
             </div>
         </div>
-        <div id="welcome_pane">
-            <p style="font-size: 16px; padding-bottom: 10px;">Bulk Search</p>
-            <br>
-            <div>
-                <button type="button" id="show_input_btn" class="side_btn">input</button>
-                <button type="button" id="show_res_btn" class="side_btn">results</button>
-                <button type="button" id="stop_btn" class="side_btn">stop</button>
-            </div>
-            <br>
-            <div>
-                <button type="button" id="start_btn" class="side_btn" style="padding-left: 86px; padding-right: 86px;">
-                    start
-                </button>
-            </div>
-            <br><br>
-            <div><input type="text" id="run_status" value="stopped" disabled></div>
-            <br><br>
-            <div id="loader_div" class="spinner" style="visibility: hidden;">
-                <div class="dot1"></div>
-                <div class="dot2"></div>
-            </div>
-        </div>
-        <div id="results_pane">
-            <p style="font-size: 16px;">Search Results</i></p>
-            <div id="results_area">
+        <div style="overflow: auto; height: calc(100% - 50px);">
+            <div id="welcome_pane">
+                <p style="font-size: 16px; padding-bottom: 10px;">Bulk Search</p>
                 <br>
-                <div class="stats_div"><span id="records" class="stats">0</span><span>records</span></div>
-                <div class="stats_div"><span id="perc_compl" class="stats">0</span><span>% complete</span></div>
-                <div class="stats_div"><span id="perc_base" class="stats">0</span><span>% base matched</span></div>
-                <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
-                <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
-                <button type="button" id="map_btn" class="side_btn" onclick="location.href='/loc8/';"
-                        style=" position: absolute; left: 248px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
-                    <i class="fas fa-angle-double-left"></i> map
-                </button>
+                <div>
+                    <button type="button" id="show_input_btn" class="side_btn">input</button>
+                    <button type="button" id="show_res_btn" class="side_btn">results</button>
+                    <button type="button" id="stop_btn" class="side_btn">stop</button>
+                </div>
+                <br>
+                <div>
+                    <button type="button" id="start_btn" class="side_btn" style="padding-left: 86px; padding-right: 86px;">
+                        start
+                    </button>
+                </div>
+                <br><br>
+                <div><input type="text" id="run_status" value="stopped" disabled></div>
+                <br><br>
+                <div id="loader_div" class="spinner" style="visibility: hidden;">
+                    <div class="dot1"></div>
+                    <div class="dot2"></div>
+                </div>
+            </div>
+            <div id="results_pane">
+                <p style="font-size: 16px;">Search Results</i></p>
+                <div id="results_area">
+                    <br>
+                    <div class="stats_div"><span id="records" class="stats">0</span><span>records</span></div>
+                    <div class="stats_div"><span id="perc_compl" class="stats">0</span><span>% complete</span></div>
+                    <div class="stats_div"><span id="perc_base" class="stats">0</span><span>% base matched</span></div>
+                    <div class="stats_div"><span id="perc_sub" class="stats">0</span><span>% sub matched</span></div>
+                    <div class="stats_div"><span id="elapsed" class="stats">0</span><span>sec duration</span></div>
+                    <button type="button" id="map_btn" class="side_btn" onclick="location.href='/loc8/';"
+                            style=" position: absolute; left: 248px; bottom: 15px; border-radius: 14px 0px 0px 14px; padding: 4px 16px; ">
+                        <i class="fas fa-angle-double-left"></i> map
+                    </button>
+                </div>
             </div>
         </div>
     </div>

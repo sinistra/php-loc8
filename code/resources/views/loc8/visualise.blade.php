@@ -145,7 +145,7 @@
         .modal-content {
             letter-spacing: 1px;
             font-weight: 200;
-            font-size: 10px;
+            font-size: 11px;
             color: white;
             background: #292929;
         }

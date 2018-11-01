@@ -7,8 +7,8 @@
             $filename = $url;
             if (file_exists($filename)) {
                 // echo "$filename was last modified: " . date ("FdYHis", filemtime($filename));
-                $filename = $url . "?v=" . date ("dYHis", filemtime($filename));
-                echo $filename;
+                $date = "?v=" . date ("dYHis", filemtime($filename));
+                echo URL::asset($filename) . $date;
             }
         }
     ?>
@@ -20,7 +20,7 @@
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
     <script type="text/javascript" src="{{ URL::asset('js/tree.jquery.js') }}"></script>
 
-    <link rel="stylesheet" href="{{ URL::asset( autoversion('css/app.css') ) }}"/>
+    <link rel="stylesheet" href="{{ autoversion('css/app.css') }}"/>
 
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
@@ -172,7 +172,7 @@
         .modal-content {
             letter-spacing: 1px;
             font-weight: 300;
-            font-size: 10px;
+            font-size: 11px;
             color: white;
             background: #292929;
         }
@@ -193,9 +193,9 @@
             font-size: 11px;
             font-family: "HelveticaNeue", sans-serif;
             letter-spacing: 1px;
-            font-weight: 300;
-            color: #d6d6d6;
-            border-color: #d6d6d6;
+            font-weight: 400;
+            color: white;
+            border-color: white;
         }
 
         .btn-outline-secondary:hover {

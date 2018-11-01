@@ -3,6 +3,20 @@
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://momentjs.com/downloads/moment.min.js"></script>
+
+    <?php
+        function autoversion($url) {
+            $filename = $url;
+            if (file_exists($filename)) {
+                // echo "$filename was last modified: " . date ("FdYHis", filemtime($filename));
+                $date = "?v=" . date ("dYHis", filemtime($filename));
+                echo URL::asset($filename) . $date;
+            }
+        }
+    ?>
+
+    <link rel="stylesheet" href="{{ autoversion('css/app.css') }}"/>
+    
     <style type="text/css">
         /* spinner css from http://tobiasahlin.com/spinkit/ */
         .spinner {
