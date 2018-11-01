@@ -81,7 +81,7 @@ Route::get('/locs/details/{mt_locid}', function ($mt_locid) {
     return $locs;
 });
 
-Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
+Route::get('/loc8/load/{index_type}/{index_source}/{load_from}/{load_to}', function ($index_type, $index_source, $load_from, $load_to) {
 
     // this grabs loc IDs from mySQL in a batch and puts them into elastic one at a time
     // once this is working the plan will be to optimise into a bulk load function
@@ -94,11 +94,12 @@ Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
     echo "records " . $load_from . " - " . $load_to;
 
     $locs = DB::table('pfl')
-        ->where($search_key, $query_type, $load_from)
-        ->limit($load_qty)
-        ->get();
+        ->whereBetween($search_key, [$load_from, $load_to])->get();
+        //->where($search_key, $query_type, $load_from)
+        //->limit($load_qty)
+        //->get();
 
-    es_load_bulk($locs);
+    es_load_bulk($index_type, $index_source, $locs);
 
 });
 
@@ -319,12 +320,12 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
 });
 
-Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_str, $ret_limit, $qry_type) {
+Route::get('/loc8/qry/{index_type}/{index_source}/{search_str}/{ret_limit}/{qry_type}', function ($index_type, $index_source, $search_str, $ret_limit, $qry_type) {
 
     // this takes a search string and returns the list of records from elastic
     // that match the search term. only based on formatted address for now
 
-    $result = es_qry(qstring_decode($search_str), $ret_limit, $qry_type);
+    $result = es_qry($index_type, $index_source, qstring_decode($search_str), $ret_limit, $qry_type);
     $json = json_decode($result);
 
     $found_array = array();
@@ -445,12 +446,17 @@ function hit_curl($meth, $curl_url, $post_data)
     return $result;
 }
 
-function es_load_bulk($locs)
+function es_load_bulk($index_type, $index_source, $locs)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+    $elasticIndex = "loc8_" . $index_type . "_" . $index_source;
 
-    $curl_url = $elasticHost . "/pfl/_bulk";
+    $curl_url = $elasticHost . "/" . $elasticIndex . "/_bulk";
     $curl_data = "";
+
+    // types are;
+    // suggest - for map based autosuggest
+    // lucky - for i'm feeling lucky, for the bulk match api that returns a single result and score
 
     if (count($locs) > 0) {
         foreach ($locs as $loc) {
@@ -472,61 +478,72 @@ function es_load_bulk($locs)
 
             $search_addr = array();
 
-            // alias type 1 = dummy base address with other bits
-            $search_addr[1] = get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+            if ($index_type == "suggest") {
 
-            // alias type 2 = full-address from nbn with other bits
-            $search_addr[2] = $loc->formatted_address_string . $search_addr_suffix;
+                // alias type 1 = dummy base address with other bits
+                $search_addr[1] = get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
 
-            // alias type 4 = processed full-address with underscores so that you can force it to find st-num and st-type and.. also with other bits
-            $search_addr[4] = get_processed_addr($loc->formatted_address_string) . $search_addr_suffix;
+                // alias type 2 = full-address from nbn with other bits
+                $search_addr[2] = $loc->formatted_address_string . $search_addr_suffix;
 
-            // alias type 5 = dummy processed base address with underscores so that you can force it to find st-num and st-type and.. also with other bits - specifically for MDUs
-            $search_addr[5] = get_processed_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+                if ($is_mdu == 1) {
 
-            if ($is_mdu == 1) {
+                    // alias type 3 = unit address as eg '4/ ' instead of 'unit 4,' plus base address with other bits
+                    if ($loc->unit_number != "") {
+                        $search_addr[3] = $loc->unit_number . "/ " . get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+                    }
+                }
+            }
+            else { // ie. if ($type == "lucky")
 
-                // alias type 3 = unit address as eg '4/ ' instead of 'unit 4,' plus base address with other bits
-                if ($loc->unit_number != "") {
-                    $search_addr[3] = $loc->unit_number . "/ " . get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+                // alias type 4 = processed full-address with underscores so that you can force it to find st-num and st-type and.. also with other bits
+                $search_addr[4] = get_processed_addr($loc->formatted_address_string) . $search_addr_suffix;
+
+                // alias type 5 = dummy processed base address with underscores so that you can force it to find st-num and st-type and.. also with other bits - specifically for MDUs
+                $search_addr[5] = get_processed_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+
+                if ($is_mdu == 1) {
+
+                    // alias type 6 = string of sub-address tokens
+                    $search_addr[6] = get_sub_addr_tokens_nbn($loc->formatted_address_string);
                 }
 
-                // alias type 6 = string of sub-address tokens
-                $search_addr[6] = get_sub_addr_tokens_nbn($loc->formatted_address_string);
+                if (($is_mdu != 1) && ($loc->lot_number != null)) {
+
+                    // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
+                    $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
+                }
+
+                if (($loc->road_number_1 != null) && ($loc->road_number_2 != null)) {
+
+                    // range addr aliases for num_first and num_last for bulk
+                    $search_addr[8] = get_processed_addr($loc->road_number_1 . " " . $st_addr);
+                    $search_addr[9] = get_processed_addr($loc->road_number_2 . " " . $st_addr);
+                }
+
+                if (get_processed_complex_addr($loc->address_site_name) != null) {
+
+                    // site name aliases shopping centres, building names etc
+                    $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
+                }
+
+                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
+
+                    // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
+                    $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
+                }
             }
 
-            if (($is_mdu != 1) && ($loc->lot_number != null)) {
-
-                // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
-                $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
-            }
-
-            if (($loc->road_number_1 != null) && ($loc->road_number_2 != null)) {
-
-                // range addr aliases for num_first and num_last for bulk
-                $search_addr[8] = get_processed_addr($loc->road_number_1 . " " . $st_addr);
-                $search_addr[9] = get_processed_addr($loc->road_number_2 . " " . $st_addr);
-            }
-
-            if (get_processed_complex_addr($loc->address_site_name) != null) {
-
-                // site name aliases shopping centres, building names etc
-                $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
-            }
-
-            if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
-
-                // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
-                $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
-            }
 
             for ($i = 1; $i <= 11; $i++) {
 
                 if (isset($search_addr[$i])) {
 
+                    if ($index_source == "pfl") {
+                        $curl_source_loc = $loc->nbn_locid;
+                    }
+
                     $curl_formatted_addr = $loc->formatted_address_string;
-                    $curl_carrier_loc = $loc->nbn_locid;
-                    $curl_gnaf = $loc->gnaf_persistent_identifier;
                     $curl_serv_class = $loc->service_class;
 
                     if (in_array($i, [1, 5, 7, 8, 9])) { // if this is a base address
@@ -546,15 +563,14 @@ function es_load_bulk($locs)
                         $rec_id = $loc->id + ($i * 100000000000);
                     }
 
-                    $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
+                    $curl_data .= '{"index":{"_index":"' . $elasticIndex . '","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
                     $curl_data .= '{ ';
                     $curl_data .= safe_curl("alias_address", $search_addr[$i]) . ', ';
                     $curl_data .= safe_curl("official_address", $curl_formatted_addr) . ', ';
                     $curl_data .= '"base_hash" : "' . $base_hash . '", ';
-                    $curl_data .= '"carrier_locid" : "' . $curl_carrier_loc . '", ';
-                    $curl_data .= '"carrier_name" : "nbn", ';
+                    $curl_data .= '"source_locid" : "' . $curl_source_loc . '", ';
+                    $curl_data .= '"source_name" : "' . $index_source . '", ';
                     $curl_data .= '"mt_locid" : "' . $mt_locid . '", ';
-                    $curl_data .= '"gnaf_locid" : "' . $curl_gnaf . '", ';
                     $curl_data .= '"tech": "' . get_proc_serv_type($loc->service_type) . '", ';
                     $curl_data .= '"serv_class": "' . $curl_serv_class . '", ';
                     if (in_array($i, [4, 5, 6])) { // only add params for alias's used for the bulk resolver
@@ -575,6 +591,7 @@ function es_load_bulk($locs)
         }
 
         $result = hit_curl("POST", $curl_url, $curl_data);
+        //echo $result;
         $json = json_decode($result);
 
         if (isset($json->errors)) {
@@ -583,7 +600,7 @@ function es_load_bulk($locs)
                 $ret_str .= "<br><br>" . $curl_data;
                 $ret_str .= "<br><br>" . $result;
             } else {
-                $ret_str = " [ok]";
+                $ret_str = " [ok. took: " . $json->took . "ms]";
             }
         } else {
             $ret_str = " [n/a]";
@@ -596,12 +613,12 @@ function es_load_bulk($locs)
     echo $ret_str;
 }
 
-function es_qry($search_str, $res_limit, $qry_type)
+function es_qry($index_type, $index_source, $search_str, $res_limit, $qry_type)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     $qry_array = explode("|", $qry_type);
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_" . $index_type . "_" . $index_source . "/_search/";
 
     // always show base addresses by default, then show other things based on what is ticked by the user
 

@@ -355,7 +355,7 @@
             if ($('#aliass_chk').is(':checked')) {
                 search_type += '|aliass';
             }
-            uri_str = '/loc8/qry/' + safeUrl(phrase) + '/10/' + search_type;
+            uri_str = '/loc8/qry/pfl/suggest/' + safeUrl(phrase) + '/10/' + search_type;
             console.log(uri_str);
             return uri_str;
         },
@@ -552,7 +552,7 @@
                     at_addr_data += ' { "name": "' + orDash(val.sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
                     at_addr_data += '{ "name": "MT-LOC: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
                     at_addr_data += '{ "name": "CARRIER-LOC: ' + orDash(val.carrier_locid) + '", "id": "2' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" } ';
+                    //at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" } ';
                     //at_addr_data += '{ "name": "TECH: '+ orDash(val.tech) +'", "id": "4' + val.mt_locid + '" }, ';
                     //at_addr_data += '{ "name": "RFS: '+ orDash(val.rfs) +'", "id": "5' + val.mt_locid + '" }, ';
                     //at_addr_data += '{ "name": "SERV-CLASS: '+ orDash(val.serv_class) +'", "id": "6' + val.mt_locid + '" }';
@@ -582,7 +582,7 @@
                             addr_detail += '<div style="font-size: 11px;">';
                             addr_detail += '<span>MT-LOC: ' + data[0].id + '</span><br>';
                             addr_detail += '<span>CARRIER-LOC: ' + data[0].nbn_locid + '</span><br>';
-                            addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
+                            //addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
                             $.each(data[0], function (key, val) {

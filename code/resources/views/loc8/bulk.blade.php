@@ -615,7 +615,7 @@
 
                     if (bulk_data_arr[row_id].length > 0) {
 
-                        var row_data_arr = bulk_data_arr[row_id].split('\t')
+                        var row_data_arr = bulk_data_arr[row_id].split('\t');
                         if (typeof(row_data_arr[1]) !== 'undefined') { // this means it has tab separated UIDs in first col
                             var row_addr = row_data_arr[1];
                             var row_uid = row_data_arr[0];
