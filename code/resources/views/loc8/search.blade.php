@@ -349,7 +349,7 @@
             } else {
                 echo "      doSubmitThings('button');\n";
             }
-            echo "	}, 600);\n";
+            echo "}, 800);\n";
 
         }
         ?>
@@ -468,7 +468,7 @@
             $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
             setTimeout(function () {
                 doSelectThings('nearby');
-            }, 300);
+            }, 800);
 
         });
 
@@ -652,7 +652,7 @@
                     $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
                     setTimeout(function () {
                         doSelectThings('nearby');
-                    }, 300);
+                    }, 800);
                 }
             );
         });

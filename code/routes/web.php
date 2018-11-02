@@ -610,7 +610,7 @@ function es_qry($search_str, $res_limit, $qry_type)
         $alias_types = "1";
     }
     if (in_array("subs", $qry_array) || is_loc_id($search_str)) {
-        $alias_types .= ",2";
+        $alias_types = "2";
     }
     if (in_array("aliass", $qry_array)) {
         $alias_types .= ",3,4";
