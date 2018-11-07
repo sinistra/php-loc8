@@ -93,10 +93,7 @@ Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
 
     echo "records " . $load_from . " - " . $load_to;
 
-    $locs = DB::table('pfl')
-        ->where($search_key, $query_type, $load_from)
-        ->limit($load_qty)
-        ->get();
+    $locs = DB::table('pfl')->whereBetween($search_key, [$load_from, $load_to])->get();
 
     es_load_bulk($locs);
 
