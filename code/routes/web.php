@@ -30,7 +30,7 @@ Route::get('/loc8/map/{type}/{str}', function ($type, $str) {
 Route::get('/locs/{id_num}', function ($id_num) {
 
     $locs = DB::table('pfl')
-        ->where('nbn_location_identifier', '=', $id_num)
+        ->where('nbn_locid', '=', $id_num)
         ->get();
 
     return view('locs.list', compact('locs'));
@@ -41,8 +41,8 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
 
     if (strtolower($search_key) == 'mt') {
         $search_key = 'id';
-    } elseif (strtolower($search_key) == 'nbn') {
-        $search_key = 'carrier_locid';
+    } elseif (strtolower($search_key) == 'pfl') {
+        $search_key = 'source_locid';
     } elseif (strtolower($search_key) == 'addr') {
         $search_key = 'formatted_address_string';
     }
@@ -72,30 +72,33 @@ Route::get('/locs/{search_key}/{search_val}/{query_type}/{page_num}', function (
 
 Route::get('/locs/details/{mt_locid}', function ($mt_locid) {
 
-    $id_num = get_loc_num($mt_locid, "MTL");
-    $locs = DB::table('pfl')
-        ->where('id', '=', $id_num)
+    $index_source = strtolower(substr($mt_locid, 3,3));
+    $id_field = get_source_locid_field($index_source);
+    $id_val = substr($mt_locid, 6);
+
+    $locs = DB::table($index_source)
+        ->where($id_field, '=', $id_val)
         ->limit(1)
         ->get();
 
     return $locs;
 });
 
-Route::get('/loc8/load/{load_from}/{load_to}', function ($load_from, $load_to) {
+Route::get('/loc8/load/{index_type}/{index_source}/{load_from}/{load_to}', function ($index_type, $index_source, $load_from, $load_to) {
 
     // this grabs loc IDs from mySQL in a batch and puts them into elastic one at a time
     // once this is working the plan will be to optimise into a bulk load function
     // instead of one at a time.
 
     $search_key = 'id';
-    $query_type = '>=';
     $load_qty = $load_to - $load_from + 1;
 
     echo "records " . $load_from . " - " . $load_to;
 
-    $locs = DB::table('pfl')->whereBetween($search_key, [$load_from, $load_to])->get();
+    $locs = DB::table('pfl')
+        ->whereBetween($search_key, [$load_from, $load_to])->get();
 
-    es_load_bulk($locs);
+    es_load_bulk($index_type, $index_source, $locs);
 
 });
 
@@ -114,46 +117,46 @@ Route::get('/loc8/bulk-old', function () {
     return view('loc8.bulk-old');
 });
 
-Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str) {
+Route::get('/loc8/match/{index_source}/{search_str}', function ($index_source, $search_str) {
 
-    // this takes a carrier name and search string and returns the best addr match it can
+    // this takes a source name and search string and returns the best addr match it can
     $match_obj = null; // the object that comes back from es when a match in es is found
     $google_arr = [];
     $return_arr = array(); //the end object that is returned from the api
-    $return_arr["trace_data"]["raw_user_str"] = qstring_decode($search_str);
+    $return_arr["traceData"]["rawUserStr"] = qstring_decode($search_str);
 
     if (is_loc_id($search_str)) {
         // first see if this matches an ID of some sort
         $match_type = "id";
-        $match_obj = find_processed_addr_by_id($search_str);
+        $match_obj = find_processed_addr_by_id($index_source, $search_str);
     } else {
         // process the input so that we are comparing apples with apples as much as possible
         $processed_search_str = get_processed_addr($search_str);
-        $return_arr["trace_data"]["processed_user_str"] = $processed_search_str;
+        $return_arr["traceData"]["processedUserStr"] = $processed_search_str;
 
         // try matching what the user typed, and iteratively take bits off the front
         // and then off the back to see if that matches anything
         if ($match_obj == null) {
             $match_type = "string";
-            $recursive_match_arr = recursive_match($processed_search_str);
+            $recursive_match_arr = recursive_match($index_source, $processed_search_str);
             $match_obj = $recursive_match_arr["match"];
-            $return_arr["trace_data"]["direct_tries"] = $recursive_match_arr["tries"];
+            $return_arr["traceData"]["directTries"] = $recursive_match_arr["tries"];
         }
 
         // if no match based on what the user typed then get the base addr via google and try to match that
         if ($match_obj == null) {
             $match_type = "google";
             $google_arr = get_google_arr($search_str);
-            $return_arr["trace_data"]["google_response"] = $google_arr;
+            $return_arr["traceData"]["googleResponse"] = $google_arr;
 
             $google_check_str = get_google_check_str($google_arr);
-            $return_arr["trace_data"]["google_check_str"] = $google_check_str;
-            $return_arr["trace_data"]["google_match"] = score_match_addr(get_processed_addr($search_str), $google_check_str);
+            $return_arr["traceData"]["googleCheckStr"] = $google_check_str;
+            $return_arr["traceData"]["googleMatch"] = score_match_addr(get_processed_addr($search_str), $google_check_str);
             $google_base_addr = get_processed_addr(get_base_addr_google($google_arr));
 
-            $recursive_match_arr = recursive_match($google_base_addr);
+            $recursive_match_arr = recursive_match($index_source, $google_base_addr);
             $match_obj = $recursive_match_arr["match"];
-            $return_arr["trace_data"]["google_tries"] = $recursive_match_arr["tries"];
+            $return_arr["traceData"]["googleTries"] = $recursive_match_arr["tries"];
         }
     }
 
@@ -162,27 +165,28 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         if ($match_type == "id") {
             $base_match_score = 100;
         } elseif ($match_type == "google") {
-            $base_match_score = $return_arr["trace_data"]["google_match"]["match_score"];
+            $base_match_score = $return_arr["traceData"]["googleMatch"]["matchScore"];
         } else {
-            $return_arr["trace_data"]["base_match"] = score_match_addr(get_processed_addr($search_str), $match_obj->alias_address);
-            $base_match_score = $return_arr["trace_data"]["base_match"]["match_score"];
+            $return_arr["traceData"]["baseMatch"] = score_match_addr(get_processed_addr($search_str), $match_obj->alias_address);
+            $base_match_score = $return_arr["traceData"]["baseMatch"]["matchScore"];
         }
 
-        $return_arr["trace_data"]["match_type"] = $match_type;
-        $return_arr["trace_data"]["matched_alias_addr"] = $match_obj->alias_address;
-        $return_arr["trace_data"]["matched_official_addr"] = $match_obj->official_address;
-        $return_arr["trace_data"]["matched_alias_type"] = $match_obj->alias_type;
+        $return_arr["traceData"]["matchType"] = $match_type;
+        $return_arr["traceData"]["matchedAliasAddr"] = $match_obj->alias_address;
+        $return_arr["traceData"]["matchedOfficialAddr"] = $match_obj->official_address;
+        $return_arr["traceData"]["matchedAliasType"] = $match_obj->alias_type;
 
         // first start returning the base-address data
-        $matched_base_addr = get_base_addr_nbn($match_obj->official_address);
-        $return_arr["results"]["matched_base_addr"]["long_name"] = $matched_base_addr;
-        $return_arr["results"]["matched_base_addr"]["match_score"] = $base_match_score;
-        $return_arr["results"]["matched_sub_addr"]["carrier_name"] = "NBN"; // this is not in the es-db as yet
+        $matched_base_addr = get_base_addr_pfl($match_obj->official_address);
+        $return_arr["results"]["matchedBaseAddr"]["longName"] = $matched_base_addr;
+        $return_arr["results"]["matchedBaseAddr"]["geoLocation"] = $match_obj->geo_location;
+        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = $base_match_score;
+        $return_arr["results"]["matchedSubAddr"]["sourceName"] = "PFL"; // this is not in the es-db as yet
 
-        $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $match_obj->carrier_locid; // overwrite this if there is a sub-address match
-        $return_arr["results"]["matched_sub_addr"]["mt_id"] = $match_obj->mt_locid; // overwrite this if there is a sub-address match
+        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid; // overwrite this if there is a sub-address match
+        $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid; // overwrite this if there is a sub-address match
 
-        $token_match_obj = find_sub_addresses($match_obj); // we now need to get all sub-addresses no matter what for the return data
+        $token_match_obj = find_sub_addresses($index_source, $match_obj); // we now need to get all sub-addresses no matter what for the return data
 
         if ($match_type != "id") {
             // now need to find user tokens based on the users base address
@@ -193,18 +197,19 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
                 $processed_matched_base_addr = get_processed_addr($matched_base_addr);
             }
             $usr_sub_addr_str = get_sub_addr_usr($processed_search_str, $processed_matched_base_addr);
-            $return_arr["trace_data"]["processed_usr_base_addr"] = $processed_matched_base_addr;
+            $return_arr["traceData"]["processedUsrBaseAddr"] = $processed_matched_base_addr;
         }
 
         // by default return the first sub-address record with a score of 0
-        $return_arr["results"]["matched_sub_addr"]["long_name"] = $token_match_obj[0]->_source->official_address;
-        $return_arr["results"]["matched_sub_addr"]["short_name"] = get_sub_addr_nbn($token_match_obj[0]->_source->official_address);
-        $return_arr["results"]["matched_sub_addr"]["match_score"] = 0;
-        $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $token_match_obj[0]->_source->carrier_locid;
-        $return_arr["results"]["matched_sub_addr"]["mt_id"] = $token_match_obj[0]->_source->mt_locid;
-        $return_arr["results"]["matched_sub_addr"]["serv_class"] = $token_match_obj[0]->_source->serv_class;
-        $return_arr["results"]["matched_sub_addr"]["tech"] = $token_match_obj[0]->_source->tech;
-        $return_arr["results"]["matched_sub_addr"]["params"] = $token_match_obj[0]->_source->params;
+        $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[0]->_source->official_address;
+        $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[0]->_source->official_address);
+        $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[0]->_source->geo_location;
+        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
+        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[0]->_source->source_locid;
+        $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[0]->_source->mt_locid;
+        $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[0]->_source->serv_class;
+        $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[0]->_source->tech;
+        $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[0]->_source->params;
 
         if ($match_type == "id") {
             foreach ($token_match_obj as $key => $val) {
@@ -215,23 +220,23 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
             // these are the usr tokens
             $usr_tokens = get_sub_addr_tokens($usr_sub_addr_str);
             $usr_tokens_count = substr_count($usr_tokens, '_') + 1;
-            $return_arr["trace_data"]["user_sub_addr_tokens"] = $usr_tokens;
+            $return_arr["traceData"]["userSubAddrTokens"] = $usr_tokens;
 
             // these are the tokens for each of the match sub-addresses
             foreach ($token_match_obj as $key => $val) {
                 $token_vals[$key] = $val->_source->alias_address;
-                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_nbn($val->_source->official_address), get_base_addr_nbn($match_obj->official_address));
-                $return_arr["trace_data"]["token_scores"][$val->_source->alias_address] = $token_scores[$key];
+                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_pfl($val->_source->official_address), get_base_addr_pfl($match_obj->official_address));
+                $return_arr["traceData"]["tokenScores"][$val->_source->alias_address] = $token_scores[$key];
             }
 
-            arsort($return_arr["trace_data"]["token_scores"]);
+            arsort($return_arr["traceData"]["tokenScores"]);
             arsort($token_scores);
 
             // now print out the all sub-addr data with the highest scores at the top
             $sub_addr_i = 0;
             foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
                 if ($val > 2) {
-                    $return_arr["results"]["all_sub_addr"][$sub_addr_i] = get_sub_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+                    $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
                     $sub_addr_i++;
                 }
             }
@@ -240,74 +245,78 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
         asort($token_vals); // sort so we can show the higest scores first
 
         if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
-            $return_arr["results"]["all_sub_addr"][$sub_addr_i] = "-";
+            $return_arr["results"]["allSubAddr"][$sub_addr_i] = "-";
             $sub_addr_i++;
         }
 
         foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
-            $return_arr["results"]["all_sub_addr"][$sub_addr_i] = get_sub_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_nbn($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+            $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
             $sub_addr_i++;
         }
 
         if ($match_type == "id") { // then this is a direct match - use the initial object not the token obj
-            $return_arr["results"]["matched_sub_addr"]["match_score"] = 100;
-            $return_arr["results"]["matched_sub_addr"]["long_name"] = $match_obj->official_address;
-            $return_arr["results"]["matched_sub_addr"]["short_name"] = get_sub_addr_nbn($match_obj->official_address);
-            $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $match_obj->carrier_locid;
-            $return_arr["results"]["matched_sub_addr"]["mt_id"] = $match_obj->mt_locid;
-            $return_arr["results"]["matched_sub_addr"]["serv_class"] = $match_obj->serv_class;
-            $return_arr["results"]["matched_sub_addr"]["tech"] = $match_obj->tech;
-            $return_arr["results"]["matched_sub_addr"]["params"] = $match_obj->params;
+            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
+            $return_arr["results"]["matchedSubAddr"]["longName"] = $match_obj->official_address;
+            $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($match_obj->official_address);
+            $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $match_obj->geo_location;
+            $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid;
+            $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid;
+            $return_arr["results"]["matchedSubAddr"]["servClass"] = $match_obj->serv_class;
+            $return_arr["results"]["matchedSubAddr"]["tech"] = $match_obj->tech;
+            $return_arr["results"]["matchedSubAddr"]["params"] = $match_obj->params;
         } elseif (count($token_match_obj) == 1) { // this is an SDU
-            $return_arr["results"]["matched_sub_addr"]["match_score"] = 100;
+            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
         } elseif (($usr_sub_addr_str == null) && (count($token_match_obj) > 1)) { // if its an mdu, but the user didnt type any sub-address details
-            $return_arr["results"]["matched_sub_addr"]["long_name"] = "-";
-            $return_arr["results"]["matched_sub_addr"]["short_name"] = "-";
+            $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+            $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
         } else {
             $top_scores = array_keys($token_scores, max($token_scores));
             if ((count($top_scores) > 0) && ($top_scores[0] > 0)) { // there were winners
 
                 // now we have a better sub-address so return that instead
-                $return_arr["results"]["matched_sub_addr"]["long_name"] = $token_match_obj[$top_scores[0]]->_source->official_address;
-                $return_arr["results"]["matched_sub_addr"]["short_name"] = get_sub_addr_nbn($token_match_obj[$top_scores[0]]->_source->official_address);
-                $return_arr["results"]["matched_sub_addr"]["carrier_id"] = $token_match_obj[$top_scores[0]]->_source->carrier_locid;
-                $return_arr["results"]["matched_sub_addr"]["mt_id"] = $token_match_obj[$top_scores[0]]->_source->mt_locid;
-                $return_arr["results"]["matched_sub_addr"]["serv_class"] = $token_match_obj[$top_scores[0]]->_source->serv_class;
-                $return_arr["results"]["matched_sub_addr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
-                $return_arr["results"]["matched_sub_addr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
+                $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[$top_scores[0]]->_source->official_address;
+                $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address);
+                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[$top_scores[0]]->_source->geo_location;
+                $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[$top_scores[0]]->_source->source_locid;
+                $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[$top_scores[0]]->_source->mt_locid;
+                $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[$top_scores[0]]->_source->serv_class;
+                $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
+                $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
 
                 $sub_addr_score = round(($token_scores[$top_scores[0]] * 100) / (($usr_tokens_count * 5) + 2));
 
                 if (count($top_scores) == 1) { // single winner so return the score
-                    $return_arr["results"]["matched_sub_addr"]["match_score"] = $sub_addr_score;
+                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = $sub_addr_score;
                 } else { // multiple winners so return a score of 1
-                    $return_arr["results"]["matched_sub_addr"]["match_score"] = 1;
+                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = 1;
                 }
             } else { // there was no clear sub-address winner so return a match score of 0
-                $return_arr["results"]["matched_sub_addr"]["long_name"] = "-";
-                $return_arr["results"]["matched_sub_addr"]["short_name"] = "-";
+                $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+                $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
+                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = "-";
             }
         }
     } else {
-        $return_arr["results"]["matched_base_addr"]["long_name"] = "-";
-        $return_arr["results"]["matched_base_addr"]["match_score"] = 0;
-        $return_arr["results"]["matched_sub_addr"]["long_name"] = "-";
-        $return_arr["results"]["matched_sub_addr"]["match_score"] = 0;
+        $return_arr["results"]["matchedBaseAddr"]["longName"] = "-";
+        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = 0;
+        $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+        $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
+        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
     }
 
-    $return_arr["results"]["matched_base_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_base_addr"]["match_score"], "base", $match_type);
-    $return_arr["results"]["matched_sub_addr"]["match_msg"] = match_score_to_msg($return_arr["results"]["matched_sub_addr"]["match_score"], "sub", "");
-    if (isset($top_scores) && (get_base_addr_nbn($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_nbn($match_obj->official_address))) {
-        $return_arr["results"]["matched_sub_addr"]["match_msg"] .= " (different base address, same complex)";
+    $return_arr["results"]["matchedBaseAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedBaseAddr"]["matchScore"], "base", $match_type);
+    $return_arr["results"]["matchedSubAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedSubAddr"]["matchScore"], "sub", "");
+    if (isset($top_scores) && (get_base_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_pfl($match_obj->official_address))) {
+        $return_arr["results"]["matchedSubAddr"]["matchMsg"] .= " (different base address, same complex)";
     }
 
-    if (isset($return_arr["results"]["matched_sub_addr"]["carrier_id"])) {
+    if (isset($return_arr["results"]["matchedSubAddr"]["sourceId"])) {
 
         $details = DB::table('pfl')
-            ->where('nbn_locid', '=', $return_arr["results"]["matched_sub_addr"]["carrier_id"])
+            ->where('nbn_locid', '=', $return_arr["results"]["matchedSubAddr"]["sourceId"])
             ->limit(1)
             ->get();
-        $return_arr["carrier_details"] = $details[0];
+        $return_arr["sourceDetails"] = $details[0];
     }
 
     ksort($return_arr);
@@ -316,18 +325,18 @@ Route::get('/loc8/match/{carrier}/{search_str}', function ($carrier, $search_str
 
 });
 
-Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_str, $ret_limit, $qry_type) {
+Route::get('/loc8/qry/{index_type}/{index_source}/{search_str}/{ret_limit}/{qry_type}', function ($index_type, $index_source, $search_str, $ret_limit, $qry_type) {
 
     // this takes a search string and returns the list of records from elastic
     // that match the search term. only based on formatted address for now
 
-    $result = es_qry(qstring_decode($search_str), $ret_limit, $qry_type);
+    $result = es_qry($index_type, $index_source, qstring_decode($search_str), $ret_limit, $qry_type);
     $json = json_decode($result);
 
     $found_array = array();
     $hits = $json->hits->hits;
     foreach ($hits as $hit) {
-        $found_array[] = ["loc" => $hit->_source->alias_address, "geo" => $hit->_source->geo_location, "hash" => $hit->_source->base_hash];
+        $found_array[] = ["loc" => $hit->_source->alias_address, "geo" => $hit->_source->geo_location, "hash" => $hit->_source->base_hash, "alias" => $hit->_source->alias_type];
     }
 
     header('Content-type: application/json');
@@ -335,12 +344,12 @@ Route::get('/loc8/qry/{search_str}/{ret_limit}/{qry_type}', function ($search_st
 
 });
 
-Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $ret_limit) {
+Route::get('/loc8/base_qry/{index_type}/{index_source}/{search_str}/{ret_limit}', function ($index_type, $index_source, $search_str, $ret_limit) {
 
     // this takes a basehash id and returns the list of records from elastic
     // that match the base hash. ie. for finding all sub addresses at a base address.
 
-    $result = es_base_qry($search_str, $ret_limit);
+    $result = es_base_qry($index_type, $index_source, $search_str, $ret_limit);
     $json = json_decode($result);
 
     $found_array = array();
@@ -349,13 +358,13 @@ Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $re
     //print_r($hits);
 
     foreach ($hits as $hit) {
-        if (in_array($hit->_source->alias_type, [1])) { // add the base address here - but only 1 at most incase nbn have a base record and sub addresses
-            $base_addr_str = get_base_addr_nbn($hits[0]->_source->official_address);
-            $found_array_1[] = ["st_addr" => get_st_addr_nbn($base_addr_str), "suburb" => get_suburb_nbn($base_addr_str)];
+        if (in_array($hit->_source->alias_type, [1])) { // add the base address here - but only 1 at most incase the pfl has a base record and sub addresses
+            $base_addr_str = get_base_addr_pfl($hits[0]->_source->official_address);
+            $found_array_1[] = ["st_addr" => get_st_addr_pfl($base_addr_str), "suburb" => get_suburb_pfl($base_addr_str)];
         }
         if (in_array($hit->_source->alias_type, [2])) { // add the sub-addresses here
-            $carrier_addr = $hit->_source->official_address;
-            $found_array_2[] = ["sub_addr" => get_sub_addr_nbn($carrier_addr), "mt_locid" => $hit->_source->mt_locid, "geo" => $hit->_source->geo_location, "carrier_locid" => $hit->_source->carrier_locid, "gnaf_locid" => $hit->_source->gnaf_locid, "alias" => $hit->_source->alias_type];
+            $source_addr = $hit->_source->official_address;
+            $found_array_2[] = ["sub_addr" => get_sub_addr_pfl($source_addr), "mt_locid" => $hit->_source->mt_locid, "geo" => $hit->_source->geo_location, "source_locid" => $hit->_source->source_locid, "alias" => $hit->_source->alias_type];
         }
     }
 
@@ -367,35 +376,48 @@ Route::get('/loc8/base_qry/{search_str}/{ret_limit}', function ($search_str, $re
 
 });
 
-Route::get('/loc8/nearby_qry/{lat}/{lon}/{ret_limit}', function ($lat, $lon, $ret_limit) {
+Route::get('/loc8/nearby_qry/{index_type}/{index_source}/{lat}/{lon}/{ret_limit}', function ($index_type, $index_source, $lat, $lon, $ret_limit) {
 
     // this takes a the co-ords for a point and returns the list of records from elastic
     // that are base addresses near the point. ie. for finding all nearby base addresses.
+    $hashes_arr = [];
+    $count_arr = [];
+    $found_arr = [];
 
-    $result = es_nearby_qry($lat, $lon, $ret_limit);
+    $result_1 = es_nearby_qry($index_type, $index_source,$lat, $lon, $ret_limit);
+    $json_1 = json_decode($result_1);
+    $hits_1 = $json_1->hits->hits;
 
-    $json = json_decode($result);
+    // get the base hashes for what is nearby
+    foreach ($hits_1 as $hit) {
+        $hashes_arr[] = $hit->_source->base_hash;
+    }
+    $hashes_str = implode($hashes_arr, '","');
 
-    $found_array = array();
-    $hits = $json->hits->hits;
+    // now count up how many results are at each base hash
+    $result_2 = es_bases_qry($index_type, $index_source, $hashes_str, "10000");
+    $json_2 = json_decode($result_2);
+    $hits_2 = $json_2->hits->hits;
 
-    foreach ($hits as $hit) {
-        $base_addr_str = get_base_addr_nbn($hit->_source->official_address);
-        $dist = round($hit->sort[0] * 1000);
-
-        $subs_count_result = es_base_qry($hit->_source->base_hash, "1");
-        $subs_count_json = json_decode($subs_count_result);
-
-        $subs_total = $subs_count_json->hits->total;
-        if ($subs_total > 1) {
-            $subs_total -= 1;
+    foreach ($hits_2 as $hit) {
+        if (array_key_exists($hit->_source->base_hash, $count_arr)) {
+            $count_arr[$hit->_source->base_hash] += 1;
         }
+        else {
+           $count_arr[$hit->_source->base_hash] = 0; 
+        }
+    }
 
-        $found_array[] = ["nbn_st_addr" => get_st_addr_nbn($base_addr_str), "nbn_suburb" => get_suburb_nbn($base_addr_str), "dist" => $dist, "count" => $subs_total, "geo" => $hit->_source->geo_location, "mt" => $hit->_source->mt_locid, "serv_class" => $hit->_source->serv_class, "tech" => $hit->_source->tech];
+    // now create the return json
+    foreach ($hits_1 as $hit) {
+        $base_addr_str = get_base_addr_pfl($hit->_source->official_address);
+        $dist = round($hit->sort[0] * 1000);
+        $subs_total = $count_arr[$hit->_source->base_hash];
+        $found_arr[] = ["st_addr" => get_st_addr_pfl($base_addr_str), "suburb" => get_suburb_pfl($base_addr_str), "dist" => $dist, "count" => $subs_total, "geo" => $hit->_source->geo_location, "mt" => $hit->_source->mt_locid, "serv_class" => $hit->_source->serv_class, "tech" => $hit->_source->tech];
     }
 
     header('Content-type: application/json');
-    echo json_encode($found_array);
+    echo json_encode($found_arr);
 
 });
 
@@ -442,17 +464,23 @@ function hit_curl($meth, $curl_url, $post_data)
     return $result;
 }
 
-function es_load_bulk($locs)
+function es_load_bulk($index_type, $index_source, $locs)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+    $elasticIndex = "loc8_" . $index_type . "_" . $index_source;
+    $source_locid = get_source_locid_field($index_source);
 
-    $curl_url = $elasticHost . "/pfl/_bulk";
+    $curl_url = $elasticHost . "/" . $elasticIndex . "/_bulk";
     $curl_data = "";
+
+    // types are;
+    // suggest - for map based autosuggest
+    // lucky - for i'm feeling lucky, for the bulk match api that returns a single result and score
 
     if (count($locs) > 0) {
         foreach ($locs as $loc) {
 
-            $base_addr = get_base_addr_nbn($loc->formatted_address_string);
+            $base_addr = get_base_addr_pfl($loc->formatted_address_string);
             if ($base_addr != $loc->formatted_address_string) {
                 $is_mdu = 1;
             } else {
@@ -462,68 +490,75 @@ function es_load_bulk($locs)
             $simple_addr = " " . $loc->locality_name . " " . $loc->state_territory_code . " " . $loc->postcode;
             $st_addr = $loc->road_name . " " . $loc->road_type_code . $simple_addr;
 
-            $base_hash = substr(md5(get_base_addr_nbn($loc->formatted_address_string)), 0, 15);
+            $base_hash = substr(md5(get_base_addr_pfl($loc->formatted_address_string)), 0, 15);
 
-            $mt_locid = "MTL" . sprintf("%'.012d", $loc->id);
-            $search_addr_suffix = " | " . $loc->nbn_locid . " | L" . get_loc_num($loc->nbn_locid, "LOC") . " | " . $mt_locid;
+            $mt_locid = "MTL" . strtoupper($index_source) . $loc->$source_locid;
+            $search_addr_suffix = " | " . $mt_locid . " | " . $loc->$source_locid;
 
             $search_addr = array();
 
-            // alias type 1 = dummy base address with other bits
-            $search_addr[1] = get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+            if ($index_type == "suggest") {
 
-            // alias type 2 = full-address from nbn with other bits
-            $search_addr[2] = $loc->formatted_address_string . $search_addr_suffix;
+                // alias type 1 = dummy base address with other bits
+                $search_addr[1] = get_base_addr_pfl($loc->formatted_address_string) . $search_addr_suffix;
 
-            // alias type 4 = processed full-address with underscores so that you can force it to find st-num and st-type and.. also with other bits
-            $search_addr[4] = get_processed_addr($loc->formatted_address_string) . $search_addr_suffix;
+                // alias type 2 = full-address from pfl with other bits
+                $search_addr[2] = $loc->formatted_address_string . $search_addr_suffix;
 
-            // alias type 5 = dummy processed base address with underscores so that you can force it to find st-num and st-type and.. also with other bits - specifically for MDUs
-            $search_addr[5] = get_processed_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+                if ($is_mdu == 1) {
 
-            if ($is_mdu == 1) {
+                    // alias type 3 = unit address as eg '4/ ' instead of 'unit 4,' plus base address with other bits
+                    if ($loc->unit_number != "") {
+                        $search_addr[3] = $loc->unit_number . "/ " . get_base_addr_pfl($loc->formatted_address_string) . $search_addr_suffix;
+                    }
+                }
+            }
+            else { // ie. if ($type == "lucky")
 
-                // alias type 3 = unit address as eg '4/ ' instead of 'unit 4,' plus base address with other bits
-                if ($loc->unit_number != "") {
-                    $search_addr[3] = $loc->unit_number . "/ " . get_base_addr_nbn($loc->formatted_address_string) . $search_addr_suffix;
+                // alias type 4 = processed full-address with underscores so that you can force it to find st-num and st-type and.. also with other bits
+                $search_addr[4] = get_processed_addr($loc->formatted_address_string) . $search_addr_suffix;
+
+                // alias type 5 = dummy processed base address with underscores so that you can force it to find st-num and st-type and.. also with other bits - specifically for MDUs
+                $search_addr[5] = get_processed_base_addr_pfl($loc->formatted_address_string) . $search_addr_suffix;
+
+                if ($is_mdu == 1) {
+
+                    // alias type 6 = string of sub-address tokens
+                    $search_addr[6] = get_sub_addr_tokens_pfl($loc->formatted_address_string);
                 }
 
-                // alias type 6 = string of sub-address tokens
-                $search_addr[6] = get_sub_addr_tokens_nbn($loc->formatted_address_string);
+                if (($is_mdu != 1) && ($loc->lot_number != null)) {
+
+                    // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
+                    $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
+                }
+
+                if (($loc->road_number_1 != null) && ($loc->road_number_2 != null)) {
+
+                    // range addr aliases for num_first and num_last for bulk
+                    $search_addr[8] = get_processed_addr($loc->road_number_1 . " " . $st_addr);
+                    $search_addr[9] = get_processed_addr($loc->road_number_2 . " " . $st_addr);
+                }
+
+                if (get_processed_complex_addr($loc->address_site_name) != null) {
+
+                    // site name aliases shopping centres, building names etc
+                    $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
+                }
+
+                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
+
+                    // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
+                    $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
+                }
             }
 
-            if (($is_mdu != 1) && ($loc->lot_number != null)) {
-
-                // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
-                $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
-            }
-
-            if (($loc->road_number_1 != null) && ($loc->road_number_2 != null)) {
-
-                // range addr aliases for num_first and num_last for bulk
-                $search_addr[8] = get_processed_addr($loc->road_number_1 . " " . $st_addr);
-                $search_addr[9] = get_processed_addr($loc->road_number_2 . " " . $st_addr);
-            }
-
-            if (get_processed_complex_addr($loc->address_site_name) != null) {
-
-                // site name aliases shopping centres, building names etc
-                $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
-            }
-
-            if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
-
-                // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
-                $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
-            }
 
             for ($i = 1; $i <= 11; $i++) {
 
                 if (isset($search_addr[$i])) {
 
                     $curl_formatted_addr = $loc->formatted_address_string;
-                    $curl_carrier_loc = $loc->nbn_locid;
-                    $curl_gnaf = $loc->gnaf_persistent_identifier;
                     $curl_serv_class = $loc->service_class;
 
                     if (in_array($i, [1, 5, 7, 8, 9])) { // if this is a base address
@@ -531,7 +566,7 @@ function es_load_bulk($locs)
                         $rec_id = $i . $base_hash; // use base hash as record id for base addresses to avoid duplicates
 
                         if ($is_mdu == 1) { // if this is a base address for an mdu, then dont use the standard vals as this is basically a dummy record
-                            $curl_formatted_addr = get_base_addr_nbn($loc->formatted_address_string);
+                            $curl_formatted_addr = get_base_addr_pfl($loc->formatted_address_string);
                         }
                     } elseif ($i == 10) {
                         // there are often different entries for site name at the same sub address - we want to get all of them uniquely
@@ -543,15 +578,14 @@ function es_load_bulk($locs)
                         $rec_id = $loc->id + ($i * 100000000000);
                     }
 
-                    $curl_data .= '{"index":{"_index":"pfl","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
+                    $curl_data .= '{"index":{"_index":"' . $elasticIndex . '","_type":"doc","_id":"' . $rec_id . '"}}' . "\n";
                     $curl_data .= '{ ';
                     $curl_data .= safe_curl("alias_address", $search_addr[$i]) . ', ';
                     $curl_data .= safe_curl("official_address", $curl_formatted_addr) . ', ';
                     $curl_data .= '"base_hash" : "' . $base_hash . '", ';
-                    $curl_data .= '"carrier_locid" : "' . $curl_carrier_loc . '", ';
-                    $curl_data .= '"carrier_name" : "nbn", ';
+                    $curl_data .= '"source_locid" : "' . $loc->$source_locid . '", ';
+                    $curl_data .= '"source_name" : "' . $index_source . '", ';
                     $curl_data .= '"mt_locid" : "' . $mt_locid . '", ';
-                    $curl_data .= '"gnaf_locid" : "' . $curl_gnaf . '", ';
                     $curl_data .= '"tech": "' . get_proc_serv_type($loc->service_type) . '", ';
                     $curl_data .= '"serv_class": "' . $curl_serv_class . '", ';
                     if (in_array($i, [4, 5, 6])) { // only add params for alias's used for the bulk resolver
@@ -572,6 +606,7 @@ function es_load_bulk($locs)
         }
 
         $result = hit_curl("POST", $curl_url, $curl_data);
+        //echo $result;
         $json = json_decode($result);
 
         if (isset($json->errors)) {
@@ -580,7 +615,7 @@ function es_load_bulk($locs)
                 $ret_str .= "<br><br>" . $curl_data;
                 $ret_str .= "<br><br>" . $result;
             } else {
-                $ret_str = " [ok]";
+                $ret_str = " [ok. took: " . $json->took . "ms]";
             }
         } else {
             $ret_str = " [n/a]";
@@ -593,12 +628,12 @@ function es_load_bulk($locs)
     echo $ret_str;
 }
 
-function es_qry($search_str, $res_limit, $qry_type)
+function es_qry($index_type, $index_source, $search_str, $res_limit, $qry_type)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     $qry_array = explode("|", $qry_type);
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_" . $index_type . "_" . $index_source . "/_search/";
 
     // always show base addresses by default, then show other things based on what is ticked by the user
 
@@ -620,17 +655,27 @@ function es_qry($search_str, $res_limit, $qry_type)
     return $curl_result;
 }
 
-function es_base_qry($search_str, $res_limit)
+function es_base_qry($index_type, $index_source, $search_str, $res_limit)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_" . $index_type . "_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "base_hash": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [1,2] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_nearby_qry($lat, $lon, $res_limit)
+function es_bases_qry($index_type, $index_source, $search_str, $res_limit)
+{
+    $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
+
+    $curl_url = $elasticHost . "/loc8_" . $index_type . "_" .  $index_source . "/_search/";
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "_source": ["mt_locid","base_hash"], "query": { "bool" : { "must": { "terms": { "base_hash": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [1,2] } } } } } }';
+    $curl_result = hit_curl("POST", $curl_url, $qry_data);
+    return $curl_result;
+}
+
+function es_nearby_qry($index_type, $index_source, $lat, $lon, $res_limit)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
@@ -645,74 +690,74 @@ function es_nearby_qry($lat, $lon, $res_limit)
     $br_lat = $lat - $bound_dist;
     $br_lon = $lon + $bound_dist;
 
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_" . $index_type . "_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_type": [1] } } , "filter": { "geo_bounding_box": { "type": "indexed", "geo_location": { "top_left": { "lat":  ' . $tl_lat . ', "lon": ' . $tl_lon . ' }, "bottom_right": { "lat":  ' . $br_lat . ', "lon": ' . $br_lon . ' } } } } } }, "sort": [ { "_geo_distance": { "geo_location": { "lat":  ' . $lat . ', "lon": ' . $lon . ' }, "order": "asc", "unit": "km", "distance_type": "plane" } } ] }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_bulk_qry($search_str, $res_limit, $alias_types)
+function es_bulk_qry($index_source, $search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_address": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_bulk_base_qry($search_str, $res_limit, $alias_types)
+function es_bulk_base_qry($index_source, $search_str, $res_limit, $alias_types)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "base_hash": ["' . $search_str . '"] } } , "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_bulk_id_qry($search_str, $res_limit, $type)
+function es_bulk_id_qry($index_source, $search_str, $res_limit, $type)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
-    // type is the type of ID eg. NBN, MT, etc.
+    // type is the type of ID eg. PFL, MT, etc.
     if ($type == "MTL") {
         $must = "mt_locid";
     } else {
-        $must = "carrier_locid";
+        $must = "source_locid";
     }
 
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "' . $must . '": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [4] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_bulk_complex_name_qry($search_str, $res_limit)
+function es_bulk_complex_name_qry($index_source, $search_str, $res_limit)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     // search str is a base hash
     // looking for all type 10 and 11 alias's for that base hash
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "base_hash": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [10,11] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function es_bulk_complex_hash_qry($search_str, $res_limit)
+function es_bulk_complex_hash_qry($index_source, $search_str, $res_limit)
 {
     $elasticHost = env('ELASTIC_HOST', '127.0.0.1') . ":9200";
 
     // search str is a list of complex names (complex as in shopping complex)
     // looking for all type 10 and 11 alias's for given complex names
-    $curl_url = $elasticHost . "/pfl/_search/";
+    $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
     $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '","xxx"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
 
-function delete_addr_suffix_nbn($addr_str)
+function delete_addr_suffix_pfl($addr_str)
 {
     // remove any portions with brackets
 
@@ -722,12 +767,14 @@ function delete_addr_suffix_nbn($addr_str)
     // \) - Match a closing parenthesis
     // /  - Closing delimiter
 
-    $ret_str = preg_replace("/\([^)]+\)/", "", $addr_str);
+    $ret_str = strrev($addr_str);
+    $ret_str = preg_replace("/\)[^(]+\(/", "", $ret_str);
     $ret_str = trim($ret_str);
+    $ret_str = strrev($ret_str);
     return $ret_str;
 }
 
-function delete_addr_prefix_nbn($addr_str)
+function delete_addr_prefix_pfl($addr_str)
 {
     // take only the last 2 portions delimited with comma's - which should get rid of the sub-address and no more
     $addr_arr = array_reverse(explode(", ", $addr_str));
@@ -735,16 +782,16 @@ function delete_addr_prefix_nbn($addr_str)
     return $ret_str;
 }
 
-function get_base_addr_nbn($addr_str)
+function get_base_addr_pfl($addr_str)
 {
-    $ret_str = delete_addr_suffix_nbn($addr_str);
-    $ret_str = delete_addr_prefix_nbn($ret_str);
+    $ret_str = delete_addr_suffix_pfl($addr_str);
+    $ret_str = delete_addr_prefix_pfl($ret_str);
     return $ret_str;
 }
 
-function get_processed_base_addr_nbn($addr_str)
+function get_processed_base_addr_pfl($addr_str)
 {
-    $ret_str = get_base_addr_nbn($addr_str);
+    $ret_str = get_base_addr_pfl($addr_str);
     $ret_str = get_processed_addr($ret_str);
     return $ret_str;
 }
@@ -755,7 +802,7 @@ function get_snake_addr($addr_str)
     // so that they can be compared without having to worry about variants with commas without commas etc.
 
     $ret_str = strtoupper($addr_str);
-    $strip_chars = array(",", "/", "(", ")", "[", "]");
+    $strip_chars = array(",", "/", "(", ")", "[", "]", ".");
     $ret_str = str_replace($strip_chars, "", $ret_str); // remove specific special chars
     $ret_str = str_replace(" ", "_", trim($ret_str)); // trim then add underscores
     $ret_str = preg_replace('/([_])\1+/', '$1', $ret_str); // find any repeat underscores and turn it into a single underscore
@@ -771,14 +818,16 @@ function get_normalised_addr($addr_str)
 {
 
     $from_to_types = array(
+        "_ALLY_" => "_ALY_",
+        "_AVENUE_" => "_AV_",
+        "_AVE_" => "_AV_",
         "_STREET_" => "_ST_",
         "_STR_" => "_ST_",
         "_ROAD_" => "_RD_",
-        "_AVENUE_" => "_AV_",
-        "_AVE_" => "_AV_",
         "_PLACE_" => "_PL_",
         "_HIGHWAY_" => "_HWY_",
         "_CIRCUIT_" => "_CCT_",
+        "_CRCT_" => "_CCT_",
         "_DRIVE_" => "_DR_",
         "_DRV_" => "_DR_",
         "_CRESCENT_" => "_CR_",
@@ -786,9 +835,20 @@ function get_normalised_addr($addr_str)
         "_CRS_" => "_CR_",
         "_COURT_" => "_CT_",
         "_BOULEVARD_" => "_BVD_",
+        "_BOULEVARDE_" => "_BVD_",
+        "_PARKWAY_" => "_PWY_",
+        "_PKWY_" => "_PWY_",
         "_BLVD_" => "_BVD_",
-        "_PARADE_" => "_PDE_",
+        "_PROMENADE_" => "_PDE_",
+        "_PLAZA_" => "_PLZA_",
+        "_PLZ_" => "_PLZA_",
+        "_WHARF_" => "_PROM_",
         "_TERRACE_" => "_TCE_",
+        "_WY_" => "_WAY_",
+        "_ESPLANADE_" => "_ESP_",
+        "_LANE_" => "_LN_",
+        "_LNE_" => "_LN_",
+        "_WHARF_" => "_WHRF_",
         "_CHARTERS_TOWERS_CITY_" => "_CHARTERS_TOWERS_",
         "_BRISBANE_CITY_" => "_BRISBANE_",
         "_PALMERSTON_CITY_" => "_PALMERSTON_",
@@ -812,9 +872,9 @@ function get_processed_addr($addr_str)
     return $ret_str;
 }
 
-function get_sub_addr_nbn($addr_str)
+function get_sub_addr_pfl($addr_str)
 {
-    $base_addr_str = get_base_addr_nbn($addr_str);
+    $base_addr_str = get_base_addr_pfl($addr_str);
 
     $ret_str = str_replace($base_addr_str, " ", $addr_str);
     $ret_str = preg_replace('/([ ])\1+/', '$1', $ret_str); // find any repeat whitespace and turn them into a single whitepace
@@ -910,6 +970,7 @@ function get_sub_addr_tokens($addr_str)
             "ROOM" => "RM",
             "RM" => "RM",
             "TH" => "TH",
+            "TNHS" => "TH",
             "TOWNHOUSE" => "TH",
             "LOT" => "LOT",
             "APPARTMENT" => "APT",
@@ -1014,9 +1075,9 @@ function get_token_scores($str1, $str2)
     return $score;
 }
 
-function get_sub_addr_tokens_nbn($addr_str)
+function get_sub_addr_tokens_pfl($addr_str)
 {
-    $ret_str = get_sub_addr_nbn($addr_str);
+    $ret_str = get_sub_addr_pfl($addr_str);
     $ret_str = get_sub_addr_tokens($ret_str);
     return $ret_str;
 }
@@ -1055,25 +1116,31 @@ function score_token_matches($usr_str, $db_str, $db_base, $match_base)
     return $match_score;
 }
 
-function get_st_addr_nbn($addr_str)
+function get_st_addr_pfl($addr_str)
 {
     $addr_arr = explode(", ", $addr_str);
     $ret_str = trim($addr_arr[0]);
     return $ret_str;
 }
 
-function get_suburb_nbn($addr_str)
+function get_suburb_pfl($addr_str)
 {
     $addr_arr = explode(", ", $addr_str);
     $ret_str = trim($addr_arr[1]);
     return $ret_str;
 }
 
-function get_loc_num($loc_str, $loc_prefix)
+function get_loc_num($loc_str, $index_source)
 {
     //get the number part of a loc id with leading zero's stripped
     // prefix  = LOC or MTL	etc
     $base_loc = "";
+    $loc_prefix = $index_source;
+
+    if ($index_source == "pfl") {
+        $loc_prefix = "LOC";
+    }
+
     if (strstr($loc_str, $loc_prefix) != false) {
         $base_loc = substr($loc_str, 3);
         $base_loc = (int)$base_loc;
@@ -1088,7 +1155,7 @@ function qstring_decode($phrase)
     return $ret_str;
 }
 
-function find_processed_addr($addr_str)
+function find_processed_addr($index_source, $addr_str)
 {
     // expects a processed addr_str
     $ret_val = null;
@@ -1101,7 +1168,7 @@ function find_processed_addr($addr_str)
     $try[3] = "5"; // there could be valid duplicates for site name or complex addresses or range addresses
 
     while ($i <= 3) { // keep trying for the smallest set result that has at least 1 record in it
-        $result = es_bulk_qry($addr_str, "10", $try[$i]);
+        $result = es_bulk_qry($index_source, $addr_str, "10", $try[$i]);
         $json = json_decode($result);
         $hits = $json->hits->total;
 
@@ -1123,7 +1190,7 @@ function find_processed_addr($addr_str)
     return $ret_val;
 }
 
-function find_processed_addr_by_id($id_str)
+function find_processed_addr_by_id($index_source, $id_str)
 {
     // expects an id such as LOC ID or MT ID
     $ret_val = null;
@@ -1133,7 +1200,7 @@ function find_processed_addr_by_id($id_str)
         $type = "MTL";
     }
 
-    $result = es_bulk_id_qry($id_str, "10", $type); // try for an ID related match
+    $result = es_bulk_id_qry($index_source, $id_str, "10", $type); // try for an ID related match
     $json = json_decode($result);
 
     $hits = $json->hits->total;
@@ -1145,7 +1212,7 @@ function find_processed_addr_by_id($id_str)
     return $ret_val;
 }
 
-function find_sub_addresses($match_obj)
+function find_sub_addresses($index_source, $match_obj)
 {
     // expects a match_obj
     $ret_val = null;
@@ -1153,7 +1220,7 @@ function find_sub_addresses($match_obj)
 
     // unfortunately we first need to see if this is a complex (eg. shopping centre or university) spanning multiple base hashes
     // first need to get all the complex names and site names for records with the given base hash
-    $result = es_bulk_complex_name_qry($base_hash, "500");
+    $result = es_bulk_complex_name_qry($index_source, $base_hash, "500");
     $json = json_decode($result);
     $hits = $json->hits->total;
 
@@ -1164,7 +1231,7 @@ function find_sub_addresses($match_obj)
         }
         $complex_names = implode('","', $complex_names_arr);
 
-        $result = es_bulk_complex_hash_qry($complex_names, "100");
+        $result = es_bulk_complex_hash_qry($index_source, $complex_names, "100");
         $json = json_decode($result);
 
         foreach ($json->hits->hits as $val) {
@@ -1175,14 +1242,14 @@ function find_sub_addresses($match_obj)
         $complex_hashes = $base_hash;
     }
 
-    $result = es_bulk_base_qry($complex_hashes, "5000", "6");
+    $result = es_bulk_base_qry($index_source, $complex_hashes, "5000", "6");
     $json = json_decode($result);
     $hits = $json->hits->total;
 
     if ($hits > 0) { // first try to get the subaddress tokens
         $ret_val = $json->hits->hits;
     } else { // if no tokens its an sdu so just grab the base address
-        $result = es_bulk_base_qry($base_hash, "5000", "5");
+        $result = es_bulk_base_qry($index_source, $base_hash, "5000", "5");
         $json = json_decode($result);
         $hits = $json->hits->total;
         if ($hits > 0) { // first try to get the subaddress tokens
@@ -1257,8 +1324,8 @@ function score_match_addr($search_str, $match_addr)
     //$ret_arr["match_points"] = ($ret_arr[1]["score"]+$ret_arr[2]["score"]) . " of " . ($ret_arr[1]["total"]+$ret_arr[2]["total"]);
     //$ret_arr["match_score"] = round((($ret_arr[1]["score"]+$ret_arr[2]["score"])*100) / ($ret_arr[1]["total"]+$ret_arr[2]["total"]));
 
-    $ret_arr["match_points"] = $ret_arr[1]["score"] . " of " . $ret_arr[1]["total"];
-    $ret_arr["match_score"] = round(($ret_arr[1]["score"] * 100) / $ret_arr[1]["total"]);
+    $ret_arr["matchPoints"] = $ret_arr[1]["score"] . " of " . $ret_arr[1]["total"];
+    $ret_arr["matchScore"] = round(($ret_arr[1]["score"] * 100) / $ret_arr[1]["total"]);
 
     return $ret_arr;
 }
@@ -1365,7 +1432,7 @@ function safe_curl_date($key, $val)
     return $ret_str;
 }
 
-function recursive_match($search_str)
+function recursive_match($index_source, $search_str)
 {
     $working_search_str_1 = $search_str;
     $try = 1;
@@ -1379,7 +1446,7 @@ function recursive_match($search_str)
         while (($match_obj == null) && ($working_search_str_2 != "") && ($try < 200)) {
 
             $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2;
-            $match_obj = find_processed_addr($working_search_str_2);
+            $match_obj = find_processed_addr($index_source, $working_search_str_2);
 
             // do the range addresses as well if they are part of the bit about to be chopped
             $split = explode("_", $working_search_str_2, 3);
@@ -1389,13 +1456,24 @@ function recursive_match($search_str)
                     $try++;
                     $working_search_str_2a = "_" . $split2[0] . "_" . $split[2];
                     $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2a;
-                    $match_obj = find_processed_addr($working_search_str_2a);
+                    $match_obj = find_processed_addr($index_source, $working_search_str_2a);
                 }
                 if (($match_obj == null) && ($try < 200)) {
                     $try++;
                     $working_search_str_2b = "_" . $split2[1] . "_" . $split[2];
                     $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2b;
-                    $match_obj = find_processed_addr($working_search_str_2b);
+                    $match_obj = find_processed_addr($index_source, $working_search_str_2b);
+                }
+            }
+
+            // check for the raw num address if that is the bit about to be chopped
+            $raw_num = preg_replace("/[^0-9]/", "", $split[1]);
+            if ($raw_num != $split[1]) { // if this portion is a mix of nums and letters
+                if (($match_obj == null) && ($try < 200)) {
+                    $try++;
+                    $working_search_str_2c = "_" . $raw_num . "_" . $split[2];
+                    $ret_arr["tries"]["match_try_" . $try] = $working_search_str_2c;
+                    $match_obj = find_processed_addr($index_source, $working_search_str_2c);
                 }
             }
 
@@ -1426,11 +1504,9 @@ function is_loc_id($search_str)
 {
     $ret_val = false;
 
-    if (strlen($search_str) == 15) {
-        if (in_array(substr($search_str, 0, 3), ["MTL", "LOC"])) {
-            if (ctype_digit(substr($search_str, 3, 12))) {
-                $ret_val = true;
-            }
+    if (in_array(substr($search_str, 0, 3), ["MTL", "LOC"])) { // if the string starts with a known prefix
+        if (stripos($search_str, " ") == false) { // and its a single word - no spaces
+            $ret_val = true;
         }
     }
 
@@ -1442,15 +1518,15 @@ function get_proc_serv_type($serv_type)
     // stripos because the match is not case sensitive
     if (stripos($serv_type, "fibre") !== false) {
         $ret_str = "FTTP";
-    } elseif (stripos($serv_type, "FTTC") !== false) {
+    } elseif (stripos($serv_type, "fttc") !== false) {
         $ret_str = "FTTC";
-    } elseif (stripos($serv_type, "FTTB") !== false) {
+    } elseif (stripos($serv_type, "fttb") !== false) {
         $ret_str = "FTTB";
-    } elseif (stripos($serv_type, "FTTN") !== false) {
+    } elseif (stripos($serv_type, "fttn") !== false) {
         $ret_str = "FTTN";
-    } elseif (stripos($serv_type, "HFC") !== false) {
+    } elseif (stripos($serv_type, "hfc") !== false) {
         $ret_str = "HFC";
-    } elseif (stripos($serv_type, "Wire") !== false) {
+    } elseif (stripos($serv_type, "wire") !== false) {
         $ret_str = "Wireless";
     } else {
         $ret_str = "tbc";
@@ -1459,10 +1535,22 @@ function get_proc_serv_type($serv_type)
     return $ret_str;
 }
 
+function get_source_locid_field($index_source) {
+
+    $ret_val = null;
+
+    if ($index_source == "pfl") {
+        $ret_val = "nbn_locid";
+    }
+
+    return $ret_val;
+}
+
 function get_processed_complex_addr($str)
 {
     $whitelist = false;
     $ret_str = get_processed_addr($str);
+    $ret_arr = [];
 
     $whitelist_arr = [
         "_SHOPPING",
@@ -1544,7 +1632,10 @@ function get_processed_complex_addr($str)
                     $ret_arr[] = $val; // remove small words
                 }
             }
-            $ret_str = "_" . implode("_", $ret_arr) . "_";
+
+            if (count($ret_arr) > 1) {
+                $ret_str = "_" . implode("_", $ret_arr) . "_";
+            }
         }
     }
 

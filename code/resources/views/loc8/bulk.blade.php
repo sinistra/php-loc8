@@ -643,7 +643,7 @@
 
                     if (bulk_data_arr[row_id].length > 0) {
 
-                        var row_data_arr = bulk_data_arr[row_id].split('\t')
+                        var row_data_arr = bulk_data_arr[row_id].split('\t');
                         if (typeof(row_data_arr[1]) !== 'undefined') { // this means it has tab separated UIDs in first col
                             var row_addr = row_data_arr[1];
                             var row_uid = row_data_arr[0];
@@ -653,7 +653,7 @@
                             var row_uid = '-';
                         }
 
-                        var ajax_url = "/loc8/match/nbn/" + safeUrl(row_addr);
+                        var ajax_url = "/loc8/match/pfl/" + safeUrl(row_addr);
                         console.log(ajax_url);
 
                         $.get(ajax_url, function (data, status) {
@@ -661,40 +661,39 @@
                             var row_str = '{';
                             row_str += '"uid": "' + row_uid + '",';
                             row_str += '"search_str": "' + row_addr + '",';
-                            row_str += '"found_base": "' + data.results.matched_base_addr.long_name + '",';
-                            row_str += '"base_score": "<span ' + scoreToClass(data.results.matched_base_addr.match_score) + '>' + data.results.matched_base_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_base_addr.match_msg + ']",';
-                            row_str += '"found_sub": "' + data.results.matched_sub_addr.long_name + '",';
-                            row_str += '"sub_score": "<span ' + scoreToClass(data.results.matched_sub_addr.match_score) + '>' + data.results.matched_sub_addr.match_score + '</span>&nbsp;<br>[' + data.results.matched_sub_addr.match_msg + ']",';
-                            if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                                row_str += '"carrier_id": "' + data.results.matched_sub_addr.carrier_id + '",';
-                                row_str += '"serv_class": "' + data.results.matched_sub_addr.serv_class + '",';
-                                row_str += '"tech": "<span ' + techToClass(data.results.matched_sub_addr.tech, data.results.matched_sub_addr.serv_class) + '>' + data.results.matched_sub_addr.tech + '</span>",';
-                                row_str += '"rfs_date": "' + data.results.matched_sub_addr.params.rfs_date + '",';
-                                row_str += '"poi_name": "' + data.results.matched_sub_addr.params.poi_name + '",';
-                                row_str += '"poi_code": "' + data.results.matched_sub_addr.params.poi_code + '",';
-                                row_str += '"ada_code": "' + data.results.matched_sub_addr.params.ada_code + '",';
-                                row_str += '"disc_date": "' + data.results.matched_sub_addr.params.disc_date + '",';
+                            row_str += '"found_base": "' + data.results.matchedBaseAddr.longName + '",';
+                            row_str += '"base_score": "<span ' + scoreToClass(data.results.matchedBaseAddr.matchScore) + '>' + data.results.matchedBaseAddr.matchScore + '</span>&nbsp;<br>[' + data.results.matchedBaseAddr.matchMsg + ']",';
+                            row_str += '"found_sub": "' + data.results.matchedSubAddr.longName + '",';
+                            row_str += '"sub_score": "<span ' + scoreToClass(data.results.matchedSubAddr.matchScore) + '>' + data.results.matchedSubAddr.matchScore + '</span>&nbsp;<br>[' + data.results.matchedSubAddr.matchMsg + ']",';
+                            if (data.results.matchedSubAddr.hasOwnProperty('sourceId')) {
+                                row_str += '"source_id": "' + data.results.matchedSubAddr.sourceId + '",';
+                                row_str += '"serv_class": "' + data.results.matchedSubAddr.servClass + '",';
+                                row_str += '"tech": "<span ' + techToClass(data.results.matchedSubAddr.tech, data.results.matchedSubAddr.servClass) + '>' + data.results.matchedSubAddr.tech + '</span>",';
+                                row_str += '"rfs_date": "' + data.results.matchedSubAddr.params.rfs_date + '",';
+                                row_str += '"poi_name": "' + data.results.matchedSubAddr.params.poi_name + '",';
+                                row_str += '"poi_code": "' + data.results.matchedSubAddr.params.poi_code + '",';
+                                row_str += '"ada_code": "' + data.results.matchedSubAddr.params.ada_code + '",';
+                                row_str += '"disc_date": "' + data.results.matchedSubAddr.params.disc_date + '",';
 
-                                // add the extended address fields for bill
-                                $.each(data.carrier_details, function (key, val) {
+                                // add the extended address fields for bill payne. so much payne.
+                                $.each(data.sourceDetails, function (key, val) {
                                     row_str += '"' + key + '": "' + val + '",';
                                 });
-
                             }
-                            row_str += '"detail": "<a href=\'/loc8/match/nbn/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fas fa-align-left\'></i></a>",';
+                            row_str += '"detail": "<a href=\'/loc8/match/pfl/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fas fa-align-left\'></i></a>",';
 
-                            if (data.results.matched_sub_addr.hasOwnProperty('carrier_id')) {
-                                row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matched_sub_addr.carrier_id + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
+                            if (data.results.matchedSubAddr.hasOwnProperty('sourceId')) {
+                                row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matchedSubAddr.sourceId + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
                             }
                             else {
                                 row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
                             }
 
-                            if (data.results.matched_base_addr.match_score > 20) {
+                            if (data.results.matchedBaseAddr.matchScore > 20) {
                                 base_matches += 1;
                             }
 
-                            if (data.results.matched_sub_addr.match_score > 20) {
+                            if (data.results.matchedSubAddr.matchScore > 20) {
                                 sub_matches += 1;
                             }
 
@@ -790,7 +789,7 @@
             {title: 'Base Score', data: 'base_score', width: '100px', defaultContent: '-'},
             {title: 'Found Sub', data: 'found_sub', width: '170px', defaultContent: '-'},
             {title: 'Sub Score', data: 'sub_score', width: '100px', defaultContent: '-'},
-            {title: 'Carrier ID', data: 'carrier_id', defaultContent: '-', orderable: true},
+            {title: 'Source ID', data: 'source_id', defaultContent: '-', orderable: true},
             {title: 'Serv Class', data: 'serv_class', defaultContent: '-'},
             {title: 'Tech', data: 'tech', defaultContent: '-'},
             {title: 'RFS Date', data: 'rfs_date', defaultContent: '-'},
@@ -816,14 +815,8 @@
             {title: 'state_territory_code', data: 'state_territory_code', defaultContent: '-'},
             {title: 'latitude', data: 'latitude', defaultContent: '-'},
             {title: 'longitude', data: 'longitude', defaultContent: '-'},
-            {
-                title: 'connectivity_servicing_area_identifier',
-                data: 'connectivity_servicing_area_identifier',
-                defaultContent: '-'
-            },
+            {title: 'connectivity_servicing_area_identifier', data: 'connectivity_servicing_area_identifier', defaultContent: '-'},
             {title: 'connectivity_servicing_area_name', data: 'connectivity_servicing_area_name', defaultContent: '-'}
-
-
         ];
 
         $('#grid').DataTable({

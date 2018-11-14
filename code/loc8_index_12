@@ -1,0 +1,171 @@
+POST /_refresh
+DELETE /loc8_suggest_pfl
+DELETE /loc8_lucky_pfl
+PUT /loc8_suggest_pfl/_settings
+{
+    "index" : {
+        "number_of_replicas" : 0
+    },
+    "refresh_interval": -1
+}
+PUT /loc8_pfl_lucky/_settings
+{
+    "index" : {
+        "number_of_replicas" : 0
+    },
+    "refresh_interval": -1
+}
+
+PUT loc8_suggest_pfl
+{
+  "settings": {
+    "index" : {
+        "number_of_shards" : 5, 
+        "number_of_replicas" : 0
+    },
+    "analysis": {
+      "analyzer": {
+        "autocomplete": {
+          "tokenizer": "autocomplete"
+        },
+        "autocomplete_search": {
+          "tokenizer": "whitespace"
+        }
+      },
+      "tokenizer": {
+        "autocomplete": {
+          "type": "edge_ngram",
+          "min_gram": 1,
+          "max_gram": 50,
+          "token_chars": [
+            "letter",
+            "digit",
+            "punctuation",
+            "symbol"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "alias_address": {
+          "type": "text",
+          "analyzer": "autocomplete",
+          "search_analyzer": "autocomplete_search"
+        },
+        "official_address": {
+          "type": "text"
+        },
+        "base_hash": {
+          "type": "text"
+        },
+        "source_name": {
+          "type": "text"
+        },
+        "source_locid": {
+          "type": "text"
+        },
+        "mt_locid": {
+          "type": "text"
+        },
+        "tech": {
+          "type": "text"
+        },
+        "serv_class": {
+          "type": "integer"
+        },
+        "params": {
+          "type": "object"
+        },
+        "geo_location": {
+          "type": "geo_point"
+        },
+        "alias_type": {
+          "type": "integer"
+        },
+        "pg_id": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
+
+PUT loc8_lucky_pfl
+{
+  "settings": {
+    "index" : {
+        "number_of_shards" : 5, 
+        "number_of_replicas" : 0
+    },
+    "analysis": {
+      "analyzer": {
+        "autocomplete": {
+          "tokenizer": "autocomplete"
+        },
+        "autocomplete_search": {
+          "tokenizer": "whitespace"
+        }
+      },
+      "tokenizer": {
+        "autocomplete": {
+          "type": "edge_ngram",
+          "min_gram": 8,
+          "max_gram": 50,
+          "token_chars": [
+            "letter",
+            "digit",
+            "punctuation",
+            "symbol"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "alias_address": {
+          "type": "text",
+          "analyzer": "autocomplete",
+          "search_analyzer": "autocomplete_search"
+        },
+        "official_address": {
+          "type": "text"
+        },
+        "base_hash": {
+          "type": "text"
+        },
+        "source_name": {
+          "type": "text"
+        },
+        "source_locid": {
+          "type": "text"
+        },
+        "mt_locid": {
+          "type": "text"
+        },
+        "tech": {
+          "type": "text"
+        },
+        "serv_class": {
+          "type": "integer"
+        },
+        "params": {
+          "type": "object"
+        },
+        "geo_location": {
+          "type": "geo_point"
+        },
+        "alias_type": {
+          "type": "integer"
+        },
+        "pg_id": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
