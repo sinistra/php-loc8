@@ -6,15 +6,13 @@
     <script type="text/javascript" src="{{ URL::asset('js/jquery.easy-autocomplete.js') }}"></script>
     <script type="text/javascript" src="{{ URL::asset('js/tree.jquery.js') }}"></script>
 
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/easy-autocomplete.themes.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/jqtree.css') }}"/>
     <link rel="stylesheet" href="{{ URL::asset('css/app.css') }}"/>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css"
-          integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
 
     <style>
         html, body {
@@ -199,8 +197,7 @@
 
 <div id="header_div">
     <div id="logo_div">
-        <a href="/loc8"><img src="/images/logo-macquarie-telecom.png"
-                             style="height: 33px; margin: 8px 0px 0px 20px"></a>
+        <a href="/loc8"><img src="/images/logo-macquarie-telecom.png" style="height: 33px; margin: 8px 0px 0px 20px"></a>
         <div style=" float: right; margin: 6px 10px 0px 0px">
             <span style="color: #dedede; font-size: 18pt; font-weight: 100; font-style: normal; letter-spacing: 2px;">LOC-8</span>
         </div>
@@ -333,7 +330,7 @@
             } else {
                 echo "      doSubmitThings('button');\n";
             }
-            echo "	}, 600);\n";
+            echo "	}, 800);\n";
 
         }
         ?>
@@ -355,7 +352,7 @@
             if ($('#aliass_chk').is(':checked')) {
                 search_type += '|aliass';
             }
-            uri_str = '/loc8/qry/pfl/suggest/' + safeUrl(phrase) + '/10/' + search_type;
+            uri_str = '/loc8/qry/suggest/pfl/10/' + search_type + '/' + safeUrl(phrase);
             console.log(uri_str);
             return uri_str;
         },
@@ -381,13 +378,13 @@
                 {
                     "elementType": "geometry.fill",
                     "stylers": [{
-                        "saturation": -60
+                        "saturation": -80
                     }]
                 },
                 {
                     "elementType": "labels.icon",
                     "stylers": [{
-                        "saturation": -75
+                        "saturation": -99
                     }]
                 }
             ]
@@ -452,7 +449,7 @@
             $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
             setTimeout(function () {
                 doSelectThings('nearby');
-            }, 300);
+            }, 800);
 
         });
 
@@ -483,7 +480,7 @@
             });
             setTimeout(function () {
                 map.setZoom(cnt)
-            }, 200); // 80ms sleep between each zoom for smooth overall zoom
+            }, 200); // 200ms sleep between each zoom for smooth overall zoom
         }
     }
 
@@ -536,7 +533,7 @@
 
         // update at_address pane - assume there could be up to 5000 sub-addresses at a single address
         var base_hash = $('#suggest_input').getSelectedItemData().hash;
-        var base_ajax_url = '/loc8/base_qry/' + base_hash + '/5000';
+        var base_ajax_url = '/loc8/base_qry/suggest/pfl/' + base_hash + '/5000';
         console.log(base_ajax_url);
         var at_addr_data = '';
         $.get(base_ajax_url, function (data, status) {
@@ -551,7 +548,7 @@
                     }
                     at_addr_data += ' { "name": "' + orDash(val.sub_addr) + '", "id": "-' + val.mt_locid + '", "children": [ ';
                     at_addr_data += '{ "name": "MT-LOC: ' + val.mt_locid + '", "id": "1' + val.mt_locid + '" }, ';
-                    at_addr_data += '{ "name": "CARRIER-LOC: ' + orDash(val.carrier_locid) + '", "id": "2' + val.mt_locid + '" }, ';
+                    at_addr_data += '{ "name": "SOURCE-ID: ' + orDash(val.source_locid) + '", "id": "2' + val.mt_locid + '" } ';
                     //at_addr_data += '{ "name": "GNAF: ' + orDash(val.gnaf_locid) + '", "id": "3' + val.mt_locid + '" } ';
                     //at_addr_data += '{ "name": "TECH: '+ orDash(val.tech) +'", "id": "4' + val.mt_locid + '" }, ';
                     //at_addr_data += '{ "name": "RFS: '+ orDash(val.rfs) +'", "id": "5' + val.mt_locid + '" }, ';
@@ -580,8 +577,8 @@
                         $.get(base_ajax_url, function (data, status) {
                             var addr_detail = '<span style="font-size: 14px;">' + data[0].formatted_address_string + '</span><br><br>';
                             addr_detail += '<div style="font-size: 11px;">';
-                            addr_detail += '<span>MT-LOC: ' + data[0].id + '</span><br>';
-                            addr_detail += '<span>CARRIER-LOC: ' + data[0].nbn_locid + '</span><br>';
+                            addr_detail += '<span>MT-ID: ' + mt_loc.substring(1) + '</span><br>';
+                            addr_detail += '<span>SOURCE-ID: ' + data[0].nbn_locid + '</span><br>';
                             //addr_detail += '<span>GNAF: ' + data[0].gnaf_persistent_identifier + '</span><br>';
                             addr_detail += '</div><br>';
                             addr_detail += '<div style="color: #3bd869;">----------------------------------------<br><br>';
@@ -605,7 +602,7 @@
     function updateNearby(geoLat, geoLon) {
 
         // update nearby pane and nearby pins
-        var nearby_ajax_url = '/loc8/nearby_qry/' + geoLat + '/' + geoLon + '/100';
+        var nearby_ajax_url = '/loc8/nearby_qry/suggest/pfl/' + geoLat + '/' + geoLon + '/100';
         console.log(nearby_ajax_url);
         var nearby_data = '';
         $.get(nearby_ajax_url, function (data, status) {
@@ -615,8 +612,8 @@
                 if (key != 0) {
                     nearby_data += ', ';
                 }
-                nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
-                var title_str = val.nbn_st_addr + ' [' + val.count + ' @ ' + val.dist + 'm : ' + val.tech + ']';
+                nearby_data += ' { "mt": "' + val.mt + '", "name": "' + val.st_addr + ' [' + val.count + ' @ ' + val.dist + 'm]", "id": ' + (key + 10000) + ' } ';
+                var title_str = val.st_addr + ' [' + val.count + ' @ ' + val.dist + 'm : ' + val.tech + ']';
                 nearby_pins[key] = addPin(val.geo.lat, val.geo.lon, title_str, val.serv_class, val.tech, val.mt, 2);
 
             });
@@ -636,7 +633,7 @@
                     $('#suggest_input').trigger(jQuery.Event('keyup', {keyCode: 8, which: 8}));
                     setTimeout(function () {
                         doSelectThings('nearby');
-                    }, 300);
+                    }, 800);
                 }
             );
         });
