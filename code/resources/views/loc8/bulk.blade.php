@@ -635,7 +635,7 @@
                 $("#input_div").hide();
                 $("#res_div").show();
 
-                //				// this is to reset the results next time start is clicked
+                // this is to reset the results next time start is clicked
                 var table = $('#grid').DataTable();
                 table.clear().draw();
 
@@ -653,7 +653,8 @@
                             var row_uid = '-';
                         }
 
-                        var ajax_url = "/loc8/match/pfl/" + safeUrl(row_addr);
+                        var ajax_url = "/loc8/match/nbn/all/" + safeUrl(row_addr);
+                        
                         console.log(ajax_url);
 
                         $.get(ajax_url, function (data, status) {

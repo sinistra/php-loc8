@@ -371,7 +371,7 @@
             if ($('#aliass_chk').is(':checked')) {
                 search_type += '|aliass';
             }
-            uri_str = '/loc8/qry/suggest/pfl/' + safeUrl(phrase) + '/10/' + search_type;
+            uri_str = '/loc8/qry/suggest/pfl/10/' + search_type + '/' + safeUrl(phrase);
             console.log(uri_str);
             return uri_str;
         },

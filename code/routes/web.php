@@ -117,215 +117,15 @@ Route::get('/loc8/bulk-old', function () {
     return view('loc8.bulk-old');
 });
 
-Route::get('/loc8/match/{index_source}/{search_str}', function ($index_source, $search_str) {
+Route::get('/loc8/match/{provider}/{return_type}/{search_str}', function ($provider, $return_type, $search_str) {
 
-    // this takes a source name and search string and returns the best addr match it can
-    $match_obj = null; // the object that comes back from es when a match in es is found
-    $google_arr = [];
-    $return_arr = array(); //the end object that is returned from the api
-    $return_arr["traceData"]["rawUserStr"] = qstring_decode($search_str);
+    if ($provider == "nbn") { $index_source = "pfl"; }
 
-    if (is_loc_id($search_str)) {
-        // first see if this matches an ID of some sort
-        $match_type = "id";
-        $match_obj = find_processed_addr_by_id($index_source, $search_str);
-    } else {
-        // process the input so that we are comparing apples with apples as much as possible
-        $processed_search_str = get_processed_addr($search_str);
-        $return_arr["traceData"]["processedUserStr"] = $processed_search_str;
-
-        // try matching what the user typed, and iteratively take bits off the front
-        // and then off the back to see if that matches anything
-        if ($match_obj == null) {
-            $match_type = "string";
-            $recursive_match_arr = recursive_match($index_source, $processed_search_str);
-            $match_obj = $recursive_match_arr["match"];
-            $return_arr["traceData"]["directTries"] = $recursive_match_arr["tries"];
-        }
-
-        // if no match based on what the user typed then get the base addr via google and try to match that
-        if ($match_obj == null) {
-            $match_type = "google";
-            $google_arr = get_google_arr($search_str);
-            $return_arr["traceData"]["googleResponse"] = $google_arr;
-
-            $google_check_str = get_google_check_str($google_arr);
-            $return_arr["traceData"]["googleCheckStr"] = $google_check_str;
-            $return_arr["traceData"]["googleMatch"] = score_match_addr(get_processed_addr($search_str), $google_check_str);
-            $google_base_addr = get_processed_addr(get_base_addr_google($google_arr));
-
-            $recursive_match_arr = recursive_match($index_source, $google_base_addr);
-            $match_obj = $recursive_match_arr["match"];
-            $return_arr["traceData"]["googleTries"] = $recursive_match_arr["tries"];
-        }
-    }
-
-    if ($match_obj != null) { // yay - something matches what is in our database
-
-        if ($match_type == "id") {
-            $base_match_score = 100;
-        } elseif ($match_type == "google") {
-            $base_match_score = $return_arr["traceData"]["googleMatch"]["matchScore"];
-        } else {
-            $return_arr["traceData"]["baseMatch"] = score_match_addr(get_processed_addr($search_str), $match_obj->alias_address);
-            $base_match_score = $return_arr["traceData"]["baseMatch"]["matchScore"];
-        }
-
-        $return_arr["traceData"]["matchType"] = $match_type;
-        $return_arr["traceData"]["matchedAliasAddr"] = $match_obj->alias_address;
-        $return_arr["traceData"]["matchedOfficialAddr"] = $match_obj->official_address;
-        $return_arr["traceData"]["matchedAliasType"] = $match_obj->alias_type;
-
-        // first start returning the base-address data
-        $matched_base_addr = get_base_addr_pfl($match_obj->official_address);
-        $return_arr["results"]["matchedBaseAddr"]["longName"] = $matched_base_addr;
-        $return_arr["results"]["matchedBaseAddr"]["geoLocation"] = $match_obj->geo_location;
-        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = $base_match_score;
-        $return_arr["results"]["matchedSubAddr"]["sourceName"] = "PFL"; // this is not in the es-db as yet
-
-        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid; // overwrite this if there is a sub-address match
-        $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid; // overwrite this if there is a sub-address match
-
-        $token_match_obj = find_sub_addresses($index_source, $match_obj); // we now need to get all sub-addresses no matter what for the return data
-
-        if ($match_type != "id") {
-            // now need to find user tokens based on the users base address
-
-            if (in_array($match_obj->alias_type, [8, 9, 10, 11])) { // if the match was based on a base alias - work out the sub-address from that
-                $processed_matched_base_addr = get_processed_addr($match_obj->alias_address);
-            } else { // else work out the sub-address from the official base address
-                $processed_matched_base_addr = get_processed_addr($matched_base_addr);
-            }
-            $usr_sub_addr_str = get_sub_addr_usr($processed_search_str, $processed_matched_base_addr);
-            $return_arr["traceData"]["processedUsrBaseAddr"] = $processed_matched_base_addr;
-        }
-
-        // by default return the first sub-address record with a score of 0
-        $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[0]->_source->official_address;
-        $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[0]->_source->official_address);
-        $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[0]->_source->geo_location;
-        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
-        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[0]->_source->source_locid;
-        $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[0]->_source->mt_locid;
-        $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[0]->_source->serv_class;
-        $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[0]->_source->tech;
-        $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[0]->_source->params;
-
-        if ($match_type == "id") {
-            foreach ($token_match_obj as $key => $val) {
-                $token_vals[$key] = $val->_source->alias_address;
-            }
-            $sub_addr_i = 0;
-        } else {
-            // these are the usr tokens
-            $usr_tokens = get_sub_addr_tokens($usr_sub_addr_str);
-            $usr_tokens_count = substr_count($usr_tokens, '_') + 1;
-            $return_arr["traceData"]["userSubAddrTokens"] = $usr_tokens;
-
-            // these are the tokens for each of the match sub-addresses
-            foreach ($token_match_obj as $key => $val) {
-                $token_vals[$key] = $val->_source->alias_address;
-                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_pfl($val->_source->official_address), get_base_addr_pfl($match_obj->official_address));
-                $return_arr["traceData"]["tokenScores"][$val->_source->alias_address] = $token_scores[$key];
-            }
-
-            arsort($return_arr["traceData"]["tokenScores"]);
-            arsort($token_scores);
-
-            // now print out the all sub-addr data with the highest scores at the top
-            $sub_addr_i = 0;
-            foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
-                if ($val > 2) {
-                    $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
-                    $sub_addr_i++;
-                }
-            }
-        }
-
-        asort($token_vals); // sort so we can show the higest scores first
-
-        if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
-            $return_arr["results"]["allSubAddr"][$sub_addr_i] = "-";
-            $sub_addr_i++;
-        }
-
-        foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
-            $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
-            $sub_addr_i++;
-        }
-
-        if ($match_type == "id") { // then this is a direct match - use the initial object not the token obj
-            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
-            $return_arr["results"]["matchedSubAddr"]["longName"] = $match_obj->official_address;
-            $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($match_obj->official_address);
-            $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $match_obj->geo_location;
-            $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid;
-            $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid;
-            $return_arr["results"]["matchedSubAddr"]["servClass"] = $match_obj->serv_class;
-            $return_arr["results"]["matchedSubAddr"]["tech"] = $match_obj->tech;
-            $return_arr["results"]["matchedSubAddr"]["params"] = $match_obj->params;
-        } elseif (count($token_match_obj) == 1) { // this is an SDU
-            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
-        } elseif (($usr_sub_addr_str == null) && (count($token_match_obj) > 1)) { // if its an mdu, but the user didnt type any sub-address details
-            $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
-            $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
-        } else {
-            $top_scores = array_keys($token_scores, max($token_scores));
-            if ((count($top_scores) > 0) && ($top_scores[0] > 0)) { // there were winners
-
-                // now we have a better sub-address so return that instead
-                $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[$top_scores[0]]->_source->official_address;
-                $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address);
-                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[$top_scores[0]]->_source->geo_location;
-                $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[$top_scores[0]]->_source->source_locid;
-                $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[$top_scores[0]]->_source->mt_locid;
-                $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[$top_scores[0]]->_source->serv_class;
-                $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
-                $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
-
-                $sub_addr_score = round(($token_scores[$top_scores[0]] * 100) / (($usr_tokens_count * 5) + 2));
-
-                if (count($top_scores) == 1) { // single winner so return the score
-                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = $sub_addr_score;
-                } else { // multiple winners so return a score of 1
-                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = 1;
-                }
-            } else { // there was no clear sub-address winner so return a match score of 0
-                $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
-                $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
-                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = "-";
-            }
-        }
-    } else {
-        $return_arr["results"]["matchedBaseAddr"]["longName"] = "-";
-        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = 0;
-        $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
-        $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
-        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
-    }
-
-    $return_arr["results"]["matchedBaseAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedBaseAddr"]["matchScore"], "base", $match_type);
-    $return_arr["results"]["matchedSubAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedSubAddr"]["matchScore"], "sub", "");
-    if (isset($top_scores) && (get_base_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_pfl($match_obj->official_address))) {
-        $return_arr["results"]["matchedSubAddr"]["matchMsg"] .= " (different base address, same complex)";
-    }
-
-    if (isset($return_arr["results"]["matchedSubAddr"]["sourceId"])) {
-
-        $details = DB::table('pfl')
-            ->where('nbn_locid', '=', $return_arr["results"]["matchedSubAddr"]["sourceId"])
-            ->limit(1)
-            ->get();
-        $return_arr["sourceDetails"] = $details[0];
-    }
-
-    ksort($return_arr);
-    header('Content-type: application/json');
-    echo json_encode($return_arr, JSON_PRETTY_PRINT);
+    return get_source_match($provider, $return_type, $index_source, $search_str);
 
 });
 
-Route::get('/loc8/qry/{index_type}/{index_source}/{search_str}/{ret_limit}/{qry_type}', function ($index_type, $index_source, $search_str, $ret_limit, $qry_type) {
+Route::get('/loc8/qry/{index_type}/{index_source}/{ret_limit}/{qry_type}/{search_str}', function ($index_type, $index_source, $ret_limit, $qry_type, $search_str) {
 
     // this takes a search string and returns the list of records from elastic
     // that match the search term. only based on formatted address for now
@@ -814,6 +614,56 @@ function get_snake_addr($addr_str)
     return $ret_str;
 }
 
+function get_denormalised_words($addr_str)
+{
+
+    $from_to_types = array(
+        "_ALLY" => "ALY",
+        "_AVENUE" => "_AV",
+        "_STREET" => "ST",
+        "_ROAD" => "RD",
+        "_PLACE" => "PL",
+        "_HIGHWAY" => "HWY",
+        "_CIRCUIT" => "CCT",
+        "_CRCT" => "CCT",
+        "_DRIVE" => "DR",
+        "_DRV" => "DR",
+        "_CRESCENT" => "CR",
+        "_CRS" => "CR",
+        "_COURT" => "CT",
+        "_BOULEVARDE" => "BVD",
+        "_PARKWAY" => "PWY",
+        "_PKWY" => "PWY",
+        "_BLVD" => "BVD",
+        "_PROMENADE" => "PDE",
+        "_PARADE" => "PDE",
+        "_PLAZA" => "PLZA",
+        "_PLZ" => "PLZA",
+        "_WHARF" => "PROM",
+        "_TERRACE_" => "TCE",
+        "_WY" => "WAY",
+        "_ESPLANADE" => "ESP",
+        "_LANE" => "LN",
+        "_LNE" => "LN",
+        "_WHARF" => "WHRF",
+    );
+
+    $addr_str = qstring_decode($addr_str);
+    $addr_arr = explode(" ", $addr_str);
+
+    foreach ($addr_arr as $key1 => $val1) {
+        foreach ($from_to_types as $key2 => $val2) {
+            $pos = strpos($key2, "_" . $val1);
+            if (($pos !== false) && ($from_to_types[$key2] != $val1) && (strlen($val1) > 3)) {
+                $addr_arr[] = $from_to_types[$key2];
+            }
+        }
+    }
+
+    $ret_str = implode(" ", $addr_arr);
+    return $ret_str;
+}
+
 function get_normalised_addr($addr_str)
 {
 
@@ -840,6 +690,7 @@ function get_normalised_addr($addr_str)
         "_PKWY_" => "_PWY_",
         "_BLVD_" => "_BVD_",
         "_PROMENADE_" => "_PDE_",
+        "_PARADE_" => "_PDE_",
         "_PLAZA_" => "_PLZA_",
         "_PLZ_" => "_PLZA_",
         "_WHARF_" => "_PROM_",
@@ -1148,10 +999,11 @@ function get_loc_num($loc_str, $index_source)
     return $base_loc;
 }
 
-function qstring_decode($phrase)
+function qstring_decode($addr_str)
 {
-    $ret_str = strtoupper($phrase);
+    $ret_str = strtoupper($addr_str);
     $ret_str = str_replace("__", "/", $ret_str);
+    $ret_str = str_replace([".", ","], "", $ret_str);
     return $ret_str;
 }
 
@@ -1644,4 +1496,214 @@ function get_processed_complex_addr($str)
     } else {
         return null;
     }
+}
+
+function get_source_match($provider, $return_type, $index_source, $search_str) {
+
+    // this takes a source name and search string and returns the best addr match it can
+    $match_obj = null; // the object that comes back from es when a match in es is found
+    $google_arr = [];
+    $return_arr = array(); //the end object that is returned from the api
+    $return_arr["traceData"]["rawUserStr"] = qstring_decode($search_str);
+
+    if (is_loc_id($search_str)) {
+        // first see if this matches an ID of some sort
+        $match_type = "id";
+        $match_obj = find_processed_addr_by_id($index_source, $search_str);
+    }
+    else {
+        // process the input so that we are comparing apples with apples as much as possible
+        $processed_search_str = get_processed_addr($search_str);
+        $return_arr["traceData"]["processedUserStr"] = $processed_search_str;
+
+        // try matching what the user typed, and iteratively take bits off the front
+        // and then off the back to see if that matches anything
+        if ($match_obj == null) {
+            $match_type = "string";
+            $recursive_match_arr = recursive_match($index_source, $processed_search_str);
+            $match_obj = $recursive_match_arr["match"];
+            $return_arr["traceData"]["directTries"] = $recursive_match_arr["tries"];
+        }
+
+        // if no match based on what the user typed then get the base addr via google and try to match that
+        if ($match_obj == null) {
+            $match_type = "google";
+            $google_arr = get_google_arr($search_str);
+            $return_arr["traceData"]["googleResponse"] = $google_arr;
+
+            $google_check_str = get_google_check_str($google_arr);
+            $return_arr["traceData"]["googleCheckStr"] = $google_check_str;
+            $return_arr["traceData"]["googleMatch"] = score_match_addr(get_processed_addr($search_str), $google_check_str);
+            $google_base_addr = get_processed_addr(get_base_addr_google($google_arr));
+
+            $recursive_match_arr = recursive_match($index_source, $google_base_addr);
+            $match_obj = $recursive_match_arr["match"];
+            $return_arr["traceData"]["googleTries"] = $recursive_match_arr["tries"];
+        }
+    }
+
+    if ($match_obj != null) { // yay - something matches what is in our database
+
+        if ($match_type == "id") {
+            $base_match_score = 100;
+        } elseif ($match_type == "google") {
+            $base_match_score = $return_arr["traceData"]["googleMatch"]["matchScore"];
+        } else {
+            $return_arr["traceData"]["baseMatch"] = score_match_addr(get_processed_addr($search_str), $match_obj->alias_address);
+            $base_match_score = $return_arr["traceData"]["baseMatch"]["matchScore"];
+        }
+
+        $return_arr["traceData"]["matchType"] = $match_type;
+        $return_arr["traceData"]["matchedAliasAddr"] = $match_obj->alias_address;
+        $return_arr["traceData"]["matchedOfficialAddr"] = $match_obj->official_address;
+        $return_arr["traceData"]["matchedAliasType"] = $match_obj->alias_type;
+        $return_arr["results"]["provider"] = $provider;
+        $return_arr["results"]["sourceName"] = $index_source;
+
+        // first start returning the base-address data
+        $matched_base_addr = get_base_addr_pfl($match_obj->official_address);
+        $return_arr["results"]["matchedBaseAddr"]["longName"] = $matched_base_addr;
+        $return_arr["results"]["matchedBaseAddr"]["geoLocation"] = $match_obj->geo_location;
+        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = $base_match_score;
+
+        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid; // overwrite this if there is a sub-address match
+        $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid; // overwrite this if there is a sub-address match
+
+        $token_match_obj = find_sub_addresses($index_source, $match_obj); // we now need to get all sub-addresses no matter what for the return data
+
+        if ($match_type != "id") {
+            // now need to find user tokens based on the users base address
+
+            if (in_array($match_obj->alias_type, [8, 9, 10, 11])) { // if the match was based on a base alias - work out the sub-address from that
+                $processed_matched_base_addr = get_processed_addr($match_obj->alias_address);
+            } else { // else work out the sub-address from the official base address
+                $processed_matched_base_addr = get_processed_addr($matched_base_addr);
+            }
+            $usr_sub_addr_str = get_sub_addr_usr($processed_search_str, $processed_matched_base_addr);
+            $return_arr["traceData"]["processedUsrBaseAddr"] = $processed_matched_base_addr;
+        }
+
+        // by default return the first sub-address record with a score of 0
+        $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[0]->_source->official_address;
+        $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[0]->_source->official_address);
+        $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[0]->_source->geo_location;
+        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
+        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[0]->_source->source_locid;
+        $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[0]->_source->mt_locid;
+        $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[0]->_source->serv_class;
+        $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[0]->_source->tech;
+        $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[0]->_source->params;
+
+        if ($match_type == "id") {
+            foreach ($token_match_obj as $key => $val) {
+                $token_vals[$key] = $val->_source->alias_address;
+            }
+            $sub_addr_i = 0;
+        } else {
+            // these are the usr tokens
+            $usr_tokens = get_sub_addr_tokens($usr_sub_addr_str);
+            $usr_tokens_count = substr_count($usr_tokens, '_') + 1;
+            $return_arr["traceData"]["userSubAddrTokens"] = $usr_tokens;
+
+            // these are the tokens for each of the match sub-addresses
+            foreach ($token_match_obj as $key => $val) {
+                $token_vals[$key] = $val->_source->alias_address;
+                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_pfl($val->_source->official_address), get_base_addr_pfl($match_obj->official_address));
+                $return_arr["traceData"]["tokenScores"][$val->_source->alias_address] = $token_scores[$key];
+            }
+
+            arsort($return_arr["traceData"]["tokenScores"]);
+            arsort($token_scores);
+
+            // now print out the all sub-addr data with the highest scores at the top
+            $sub_addr_i = 0;
+            foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
+                if ($val > 2) {
+                    $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+                    $sub_addr_i++;
+                }
+            }
+        }
+
+        asort($token_vals); // sort so we can show the higest scores first
+
+        if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
+            $return_arr["results"]["allSubAddr"][$sub_addr_i] = "-";
+            $sub_addr_i++;
+        }
+
+        foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
+            $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+            $sub_addr_i++;
+        }
+
+        if ($match_type == "id") { // then this is a direct match - use the initial object not the token obj
+            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
+            $return_arr["results"]["matchedSubAddr"]["longName"] = $match_obj->official_address;
+            $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($match_obj->official_address);
+            $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $match_obj->geo_location;
+            $return_arr["results"]["matchedSubAddr"]["sourceId"] = $match_obj->source_locid;
+            $return_arr["results"]["matchedSubAddr"]["mtId"] = $match_obj->mt_locid;
+            $return_arr["results"]["matchedSubAddr"]["servClass"] = $match_obj->serv_class;
+            $return_arr["results"]["matchedSubAddr"]["tech"] = $match_obj->tech;
+            $return_arr["results"]["matchedSubAddr"]["params"] = $match_obj->params;
+        } elseif (count($token_match_obj) == 1) { // this is an SDU
+            $return_arr["results"]["matchedSubAddr"]["matchScore"] = 100;
+        } elseif (($usr_sub_addr_str == null) && (count($token_match_obj) > 1)) { // if its an mdu, but the user didnt type any sub-address details
+            $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+            $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
+        } else {
+            $top_scores = array_keys($token_scores, max($token_scores));
+            if ((count($top_scores) > 0) && ($top_scores[0] > 0)) { // there were winners
+
+                // now we have a better sub-address so return that instead
+                $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[$top_scores[0]]->_source->official_address;
+                $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address);
+                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[$top_scores[0]]->_source->geo_location;
+                $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[$top_scores[0]]->_source->source_locid;
+                $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[$top_scores[0]]->_source->mt_locid;
+                $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[$top_scores[0]]->_source->serv_class;
+                $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[$top_scores[0]]->_source->tech;
+                $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[$top_scores[0]]->_source->params;
+
+                $sub_addr_score = round(($token_scores[$top_scores[0]] * 100) / (($usr_tokens_count * 5) + 2));
+
+                if (count($top_scores) == 1) { // single winner so return the score
+                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = $sub_addr_score;
+                } else { // multiple winners so return a score of 1
+                    $return_arr["results"]["matchedSubAddr"]["matchScore"] = 1;
+                }
+            } else { // there was no clear sub-address winner so return a match score of 0
+                $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+                $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
+                $return_arr["results"]["matchedSubAddr"]["geoLocation"] = "-";
+            }
+        }
+    } else {
+        $return_arr["results"]["matchedBaseAddr"]["longName"] = "-";
+        $return_arr["results"]["matchedBaseAddr"]["matchScore"] = 0;
+        $return_arr["results"]["matchedSubAddr"]["longName"] = "-";
+        $return_arr["results"]["matchedSubAddr"]["shortName"] = "-";
+        $return_arr["results"]["matchedSubAddr"]["matchScore"] = 0;
+    }
+
+    $return_arr["results"]["matchedBaseAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedBaseAddr"]["matchScore"], "base", $match_type);
+    $return_arr["results"]["matchedSubAddr"]["matchMsg"] = match_score_to_msg($return_arr["results"]["matchedSubAddr"]["matchScore"], "sub", "");
+    if (isset($top_scores) && (get_base_addr_pfl($token_match_obj[$top_scores[0]]->_source->official_address) != get_base_addr_pfl($match_obj->official_address))) {
+        $return_arr["results"]["matchedSubAddr"]["matchMsg"] .= " (different base address, same complex)";
+    }
+
+    if ((isset($return_arr["results"]["matchedSubAddr"]["sourceId"])) && ($return_type == "all")) {
+
+        $details = DB::table('pfl')
+            ->where('nbn_locid', '=', $return_arr["results"]["matchedSubAddr"]["sourceId"])
+            ->limit(1)
+            ->get();
+        $return_arr["sourceDetails"] = $details[0];
+    }
+
+    ksort($return_arr);
+    header('Content-type: application/json');
+    echo json_encode($return_arr, JSON_PRETTY_PRINT);
+
 }
