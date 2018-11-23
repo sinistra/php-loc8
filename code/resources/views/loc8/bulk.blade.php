@@ -403,7 +403,7 @@
         input:focus {
             outline-width: 0px;
             border-color: #3bd869;
-            box shadow: 0px;
+            box-shadow: none;
         }
 
         .form-control:focus {
@@ -519,7 +519,7 @@
                 </div>
             </div>
             <div id="results_pane">
-                <p style="font-size: 16px;">Search Results</i></p>
+                <p style="font-size: 16px;">Search Results</p>
                 <div id="results_area">
                     <br>
                     <div class="stats_div"><span id="records" class="stats">0</span><span>records</span></div>
@@ -654,7 +654,7 @@
                         }
 
                         var ajax_url = "/loc8/match/nbn/all/" + safeUrl(row_addr);
-                        
+
                         console.log(ajax_url);
 
                         $.get(ajax_url, function (data, status) {
