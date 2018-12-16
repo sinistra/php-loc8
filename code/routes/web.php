@@ -121,6 +121,8 @@ Route::get('/loc8/match/{provider}/{return_type}/{search_str}', function ($provi
 
     if ($provider == "nbn") { $index_source = "pfl"; }
 
+    header("Access-Control-Allow-Origin: *");
+
     return get_source_match($provider, $return_type, $index_source, $search_str);
 
 });
@@ -1074,6 +1076,7 @@ function find_sub_addresses($index_source, $match_obj)
     // unfortunately we first need to see if this is a complex (eg. shopping centre or university) spanning multiple base hashes
     // first need to get all the complex names and site names for records with the given base hash
     $result = es_bulk_complex_name_qry($index_source, $base_hash, "500");
+
     $json = json_decode($result);
     $hits = $json->hits->total;
 
@@ -1097,6 +1100,7 @@ function find_sub_addresses($index_source, $match_obj)
 
     $result = es_bulk_base_qry($index_source, $complex_hashes, "5000", "6");
     $json = json_decode($result);
+
     $hits = $json->hits->total;
 
     if ($hits > 0) { // first try to get the subaddress tokens
@@ -1105,6 +1109,7 @@ function find_sub_addresses($index_source, $match_obj)
         $result = es_bulk_base_qry($index_source, $base_hash, "5000", "5");
         $json = json_decode($result);
         $hits = $json->hits->total;
+//        dd("line ". __LINE__."=".var_export($result,true) . $index_source."|".$base_hash);
         if ($hits > 0) { // first try to get the subaddress tokens
             $ret_val = $json->hits->hits;
         }
@@ -1573,6 +1578,10 @@ function get_source_match($provider, $return_type, $index_source, $search_str) {
 
         $token_match_obj = find_sub_addresses($index_source, $match_obj); // we now need to get all sub-addresses no matter what for the return data
 
+//        if ($token_match_obj == null) {
+//            dd("index_source=".$index_source." & match_obj=".var_export($match_obj,true));
+//        }
+
         if ($match_type != "id") {
             // now need to find user tokens based on the users base address
 
@@ -1586,57 +1595,59 @@ function get_source_match($provider, $return_type, $index_source, $search_str) {
         }
 
         // by default return the first sub-address record with a score of 0
-        $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[0]->_source->official_address;
-        $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[0]->_source->official_address);
-        $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[0]->_source->geo_location;
-        $return_arr["results"]["matchedSubAddr"]["score"] = 0;
-        $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[0]->_source->source_locid;
-        $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[0]->_source->mt_locid;
-        $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[0]->_source->serv_class;
-        $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[0]->_source->tech;
-        $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[0]->_source->params;
+        if ($token_match_obj) {
+            $return_arr["results"]["matchedSubAddr"]["longName"] = $token_match_obj[0]->_source->official_address;
+            $return_arr["results"]["matchedSubAddr"]["shortName"] = get_sub_addr_pfl($token_match_obj[0]->_source->official_address);
+            $return_arr["results"]["matchedSubAddr"]["geoLocation"] = $token_match_obj[0]->_source->geo_location;
+            $return_arr["results"]["matchedSubAddr"]["score"] = 0;
+            $return_arr["results"]["matchedSubAddr"]["sourceId"] = $token_match_obj[0]->_source->source_locid;
+            $return_arr["results"]["matchedSubAddr"]["mtId"] = $token_match_obj[0]->_source->mt_locid;
+            $return_arr["results"]["matchedSubAddr"]["servClass"] = $token_match_obj[0]->_source->serv_class;
+            $return_arr["results"]["matchedSubAddr"]["tech"] = $token_match_obj[0]->_source->tech;
+            $return_arr["results"]["matchedSubAddr"]["params"] = $token_match_obj[0]->_source->params;
 
-        if ($match_type == "id") {
-            foreach ($token_match_obj as $key => $val) {
-                $token_vals[$key] = $val->_source->alias_address;
-            }
-            $sub_addr_i = 0;
-        } else {
-            // these are the usr tokens
-            $usr_tokens = get_sub_addr_tokens($usr_sub_addr_str);
-            $usr_tokens_count = substr_count($usr_tokens, '_') + 1;
-            $return_arr["traceData"]["userSubAddrTokens"] = $usr_tokens;
+            if ($match_type == "id") {
+                foreach ($token_match_obj as $key => $val) {
+                    $token_vals[$key] = $val->_source->alias_address;
+                }
+                $sub_addr_i = 0;
+            } else {
+                // these are the usr tokens
+                $usr_tokens = get_sub_addr_tokens($usr_sub_addr_str);
+                $usr_tokens_count = substr_count($usr_tokens, '_') + 1;
+                $return_arr["traceData"]["userSubAddrTokens"] = $usr_tokens;
 
-            // these are the tokens for each of the match sub-addresses
-            foreach ($token_match_obj as $key => $val) {
-                $token_vals[$key] = $val->_source->alias_address;
-                $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_pfl($val->_source->official_address), get_base_addr_pfl($match_obj->official_address));
-                $return_arr["traceData"]["tokenScores"][$val->_source->alias_address] = $token_scores[$key];
-            }
+                // these are the tokens for each of the match sub-addresses
+                foreach ($token_match_obj as $key => $val) {
+                    $token_vals[$key] = $val->_source->alias_address;
+                    $token_scores[$key] = score_token_matches($usr_tokens, $val->_source->alias_address, get_base_addr_pfl($val->_source->official_address), get_base_addr_pfl($match_obj->official_address));
+                    $return_arr["traceData"]["tokenScores"][$val->_source->alias_address] = $token_scores[$key];
+                }
 
-            arsort($return_arr["traceData"]["tokenScores"]);
-            arsort($token_scores);
+                arsort($return_arr["traceData"]["tokenScores"]);
+                arsort($token_scores);
 
-            // now print out the all sub-addr data with the highest scores at the top
-            $sub_addr_i = 0;
-            foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
-                if ($val > 2) {
-                    $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
-                    $sub_addr_i++;
+                // now print out the all sub-addr data with the highest scores at the top
+                $sub_addr_i = 0;
+                foreach ($token_scores as $key => $val) { // first print out the highest score-sub addresses
+                    if ($val > 2) {
+                        $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+                        $sub_addr_i++;
+                    }
                 }
             }
-        }
 
-        asort($token_vals); // sort so we can show the higest scores first
+            asort($token_vals); // sort so we can show the higest scores first
 
-        if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
-            $return_arr["results"]["allSubAddr"][$sub_addr_i] = "-";
-            $sub_addr_i++;
-        }
+            if ($sub_addr_i != 0) { // add a break between the top scores and all the rest of the subaddresses
+                $return_arr["results"]["allSubAddr"][$sub_addr_i] = "-";
+                $sub_addr_i++;
+            }
 
-        foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
-            $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
-            $sub_addr_i++;
+            foreach ($token_vals as $key => $val) { // now print out all sub-addresses in sorted order
+                $return_arr["results"]["allSubAddr"][$sub_addr_i] = get_sub_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . get_base_addr_pfl($token_match_obj[$key]->_source->official_address) . " : " . $token_match_obj[$key]->_source->mt_locid;
+                $sub_addr_i++;
+            }
         }
 
         if ($match_type == "id") { // then this is a direct match - use the initial object not the token obj
@@ -1705,6 +1716,7 @@ function get_source_match($provider, $return_type, $index_source, $search_str) {
     }
 
     ksort($return_arr);
+    header("Access-Control-Allow-Origin: *");
     header('Content-type: application/json');
     echo json_encode($return_arr, JSON_PRETTY_PRINT);
 
