@@ -663,9 +663,9 @@
                             row_str += '"uid": "' + row_uid + '",';
                             row_str += '"search_str": "' + row_addr + '",';
                             row_str += '"found_base": "' + data.results.matchedBaseAddr.longName + '",';
-                            row_str += '"base_score": "<span ' + scoreToClass(data.results.matchedBaseAddr.matchScore) + '>' + data.results.matchedBaseAddr.matchScore + '</span>&nbsp;<br>[' + data.results.matchedBaseAddr.matchMsg + ']",';
+                            row_str += '"base_score": "<span ' + scoreToClass(data.results.matchedBaseAddr.score) + '>' + data.results.matchedBaseAddr.score + '</span>&nbsp;<br>[' + data.results.matchedBaseAddr.matchMsg + ']",';
                             row_str += '"found_sub": "' + data.results.matchedSubAddr.longName + '",';
-                            row_str += '"sub_score": "<span ' + scoreToClass(data.results.matchedSubAddr.matchScore) + '>' + data.results.matchedSubAddr.matchScore + '</span>&nbsp;<br>[' + data.results.matchedSubAddr.matchMsg + ']",';
+                            row_str += '"sub_score": "<span ' + scoreToClass(data.results.matchedSubAddr.score) + '>' + data.results.matchedSubAddr.score + '</span>&nbsp;<br>[' + data.results.matchedSubAddr.matchMsg + ']",';
                             if (data.results.matchedSubAddr.hasOwnProperty('sourceId')) {
                                 row_str += '"source_id": "' + data.results.matchedSubAddr.sourceId + '",';
                                 row_str += '"serv_class": "' + data.results.matchedSubAddr.servClass + '",';
@@ -681,7 +681,7 @@
                                     row_str += '"' + key + '": "' + val + '",';
                                 });
                             }
-                            row_str += '"detail": "<a href=\'/loc8/match/pfl/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fas fa-align-left\'></i></a>",';
+                            row_str += '"detail": "<a href=\'/loc8/match/nbn/all/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fas fa-align-left\'></i></a>",';
 
                             if (data.results.matchedSubAddr.hasOwnProperty('sourceId')) {
                                 row_str += '"map": "<a href=\'/loc8/map/id/' + data.results.matchedSubAddr.sourceId + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
@@ -690,11 +690,11 @@
                                 row_str += '"map": "<a href=\'/loc8/map/str/' + safeUrl(row_addr) + '\' target=\'_blank\' class=\'grid_link\'><i class=\'fa fa-map-marker-alt\'></a>"';
                             }
 
-                            if (data.results.matchedBaseAddr.matchScore > 20) {
+                            if (data.results.matchedBaseAddr.score > 20) {
                                 base_matches += 1;
                             }
 
-                            if (data.results.matchedSubAddr.matchScore > 20) {
+                            if (data.results.matchedSubAddr.score > 20) {
                                 sub_matches += 1;
                             }
 

@@ -552,7 +552,8 @@ function es_bulk_complex_hash_qry($index_source, $search_str, $res_limit)
     // search str is a list of complex names (complex as in shopping complex)
     // looking for all type 10 and 11 alias's for given complex names
     $curl_url = $elasticHost . "/loc8_lucky_" .  $index_source . "/_search/";
-    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '","xxx"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } } }';
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "terms": { "alias_address": ["' . $search_str . '","xxx"] } } , "filter": { "terms": { "alias_type": [10,11] } } } } }';
+
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
     return $curl_result;
 }
@@ -1405,24 +1406,25 @@ function get_processed_complex_addr($str)
     $ret_arr = [];
 
     $whitelist_arr = [
-        "_SHOPPING",
-        "_CENTRE",
-        "_COMPLEX",
-        "_MALL",
-        "_SCHOOL",
-        "_UNIVERSITY",
-        "_VILLIAGE",
-        "_GARDENS",
-        "_TAFE",
-        "_COLLEGE",
-        "_APPARTMENTS",
-        "_PARK",
-        "_CASINO",
-        "_TOWERS",
-        "_ARCADE",
-        "_WESTFIELD",
-        "_WESTFIELDS",
-        "_HOSPITAL",
+        "_SHOPPING_",
+        "_CENTRE_",
+        "_COMPLEX_",
+        "_MALL_",
+        "_SCHOOL_",
+        "_UNIVERSITY_",
+        "_VILLIAGE_",
+        "_GARDENS_",
+        "_TAFE_",
+        "_COLLEGE_",
+        "_APPARTMENTS_",
+        "_PARK_",
+        "_CASINO_",
+        "_TOWERS_",
+        "_TOWER_",
+        "_ARCADE_",
+        "_WESTFIELD_",
+        "_WESTFIELDS_",
+        "_HOSPITAL_",
         "_PLAZA_",
         "_COURT_"
     ];
