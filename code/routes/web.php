@@ -329,7 +329,7 @@ function es_load_bulk($index_type, $index_source, $locs)
                     $search_addr[6] = get_sub_addr_tokens_pfl($loc->formatted_address_string);
                 }
 
-                if (($loc->unit_number == null) && ($loc->unit_type == null) && ($loc->lot_number != null)) {
+                if (($loc->unit_number == null) && ($loc->unit_type_code == null) && ($loc->lot_number != null)) {
 
                     // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
                     $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
