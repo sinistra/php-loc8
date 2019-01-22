@@ -1494,6 +1494,8 @@ function get_processed_complex_addr($str)
 
             if (count($ret_arr) > 1) {
                 $ret_str = "_" . implode("_", $ret_arr) . "_";
+            } else {
+                $ret_str = null;
             }
         }
     }
