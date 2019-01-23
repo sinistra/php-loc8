@@ -348,9 +348,9 @@ function es_load_bulk($index_type, $index_source, $locs)
                     $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
                 }
 
-                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
+                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && (strtoupper($loc->secondary_complex_name) != strtoupper($loc->address_site_name))) {
 
-                    // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
+                    // complex name aliases for retirement villages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
                     $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
                 }
             }
