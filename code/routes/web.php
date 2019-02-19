@@ -339,7 +339,7 @@ function es_load_bulk($index_type, $index_source, $locs)
                     $search_addr[6] = get_sub_addr_tokens_pfl($loc->formatted_address_string);
                 }
 
-                if (($is_mdu != 1) && ($loc->lot_number != null)) {
+                if (($loc->unit_number == null) && ($loc->unit_type_code == null) && ($loc->lot_number != null)) {
 
                     // lot alias for bulk - for street numbers that have a lot number (not unit numbers that are named with a lot number)
                     $search_addr[7] = get_processed_addr("LOT " . $loc->lot_number . " " . $st_addr);
@@ -358,9 +358,9 @@ function es_load_bulk($index_type, $index_source, $locs)
                     $search_addr[10] = get_processed_addr(get_processed_complex_addr($loc->address_site_name) . " " . $simple_addr);
                 }
 
-                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && ($loc->secondary_complex_name != $loc->address_site_name)) {
+                if ((get_processed_complex_addr($loc->secondary_complex_name) != null) && (strtoupper($loc->secondary_complex_name) != strtoupper($loc->address_site_name))) {
 
-                    // complex name aliases for retirement villiages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
+                    // complex name aliases for retirement villages, shopping centres etc (can be a duplicate of address_site_name in the raw data sometimes)
                     $search_addr[11] = get_processed_addr(get_processed_complex_addr($loc->secondary_complex_name) . " " . $simple_addr);
                 }
             }
@@ -1455,7 +1455,7 @@ function get_processed_complex_addr($str)
         "_MALL_",
         "_SCHOOL_",
         "_UNIVERSITY_",
-        "_VILLIAGE_",
+        "_VILLAGE_",
         "_GARDENS_",
         "_TAFE_",
         "_COLLEGE_",
@@ -1532,6 +1532,8 @@ function get_processed_complex_addr($str)
 
             if (count($ret_arr) > 1) {
                 $ret_str = "_" . implode("_", $ret_arr) . "_";
+            } else {
+                $ret_str = null;
             }
             else {
                 $ret_str = null;
