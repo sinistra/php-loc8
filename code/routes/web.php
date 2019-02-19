@@ -107,6 +107,16 @@ Route::get('/loc8/load', function () {
     return view('loc8.load');
 });
 
+Route::get('/loc8/tester', function () {
+
+    return view('loc8.tester');
+});
+
+Route::get('/loc8/mock', function () {
+
+    return view('loc8.mock');
+});
+
 Route::get('/loc8/bulk', function () {
 
     return view('loc8.bulk');
@@ -372,10 +382,10 @@ function es_load_bulk($index_type, $index_source, $locs)
                         }
                     } elseif ($i == 10) {
                         // there are often different entries for site name at the same sub address - we want to get all of them uniquely
-                        $rec_id = $i . $base_hash . substr(md5($loc->address_site_name), 0, 10);;
+                        $rec_id = $i . $base_hash . substr(md5($loc->address_site_name), 0, 10);
                     } elseif ($i == 11) {
                         // there are often different entries for complex name at the same sub address - we want to get all of them uniquely
-                        $rec_id = $i . $base_hash . substr(md5($loc->secondary_complex_name), 0, 10);;
+                        $rec_id = $i . $base_hash . substr(md5($loc->secondary_complex_name), 0, 10);
                     } else { // for all other addresses base it off the MT LOPCID (ie. UID) which itself is based on an auto-increment in mysql
                         $rec_id = $loc->id + ($i * 100000000000);
                     }
@@ -438,22 +448,26 @@ function es_qry($index_type, $index_source, $search_str, $res_limit, $qry_type)
     $curl_url = $elasticHost . "/loc8_" . $index_type . "_" . $index_source . "/_search/";
 
     // always show base addresses by default, then show other things based on what is ticked by the user
-
-    //autosuggest types
-    if (in_array("def", $qry_array)) {
+    if (is_loc_id($search_str)) {
+        $alias_types = "1,2";
+        $res_limit = "1";
+    }
+    else {
         $alias_types = "1";
-    }
-    if (in_array("subs", $qry_array) || is_loc_id($search_str)) {
-        $alias_types = "2";
-    }
-    if (in_array("aliass", $qry_array)) {
-        $alias_types .= ",3,4";
+        if (in_array("subs", $qry_array)) {
+            $alias_types .= ",2";
+        }
+        if (in_array("aliass", $qry_array)) {
+            $alias_types .= ",3,4";
+        }
     }
 
-
-    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_address": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } } } }';
+    $qry_data = '{ "from" : 0, "size" : ' . $res_limit . ', "query": { "bool" : { "must": { "match": { "alias_address": { "query": "' . $search_str . '", "operator": "and" } } }, "filter": { "terms": { "alias_type": [' . $alias_types . '] } } } }';
+    $qry_data .= ', "sort": { "alias_type": { "order": "asc" } }';
+    $qry_data .= ' }';
 
     $curl_result = hit_curl("POST", $curl_url, $qry_data);
+
     return $curl_result;
 }
 
@@ -577,18 +591,42 @@ function delete_addr_suffix_pfl($addr_str)
     return $ret_str;
 }
 
-function delete_addr_prefix_pfl($addr_str)
+function delete_addr_prefix_pfl($addr_str, $type)
 {
     // take only the last 2 portions delimited with comma's - which should get rid of the sub-address and no more
-    $addr_arr = array_reverse(explode(", ", $addr_str));
-    $ret_str = $addr_arr[1] . ", " . $addr_arr[0];
+    $addr_arr_1 = array_reverse(explode(", ", $addr_str));
+    $ret_str = $addr_arr_1[1] . ", " . $addr_arr_1[0];
+
+    // lot-only addresses have an official address where the lot number has a comma after it as though its a sub-address
+    // on the off chance that this is a lot-only address (no street number) add the next bit if it has a lot in it
+    // if we dont do this, then the whole street gets indexed as though its an mdu and only 1 point shows on the map
+    $addr_arr_2 = explode(" ", $addr_arr_1[1]); // this would be the '50' if it was '50 smith st'
+    if (array_key_exists(2, $addr_arr_1)) {
+        //echo $addr_arr_2[0] . "<br>";
+        if ((strpos($addr_arr_1[2], "LOT") !== false) && ((preg_match("/[0-9]/", ($addr_arr_2[0]))) == false)) {
+            if ($type == "raw") {
+                $delim = ", "; // where we use this in get_sub_addr_pfl we need the comma back in
+            }
+            else {
+                $delim = " ";
+            } 
+            $ret_str =  $addr_arr_1[2] . $delim . $ret_str;
+        }
+    }
     return $ret_str;
 }
 
 function get_base_addr_pfl($addr_str)
 {
     $ret_str = delete_addr_suffix_pfl($addr_str);
-    $ret_str = delete_addr_prefix_pfl($ret_str);
+    $ret_str = delete_addr_prefix_pfl($ret_str, "def");
+    return $ret_str;
+}
+
+function get_base_addr_pfl_raw($addr_str)
+{
+    $ret_str = delete_addr_suffix_pfl($addr_str);
+    $ret_str = delete_addr_prefix_pfl($ret_str, "raw");
     return $ret_str;
 }
 
@@ -728,7 +766,7 @@ function get_processed_addr($addr_str)
 
 function get_sub_addr_pfl($addr_str)
 {
-    $base_addr_str = get_base_addr_pfl($addr_str);
+    $base_addr_str = get_base_addr_pfl_raw($addr_str);
 
     $ret_str = str_replace($base_addr_str, " ", $addr_str);
     $ret_str = preg_replace('/([ ])\1+/', '$1', $ret_str); // find any repeat whitespace and turn them into a single whitepace
@@ -1494,6 +1532,9 @@ function get_processed_complex_addr($str)
 
             if (count($ret_arr) > 1) {
                 $ret_str = "_" . implode("_", $ret_arr) . "_";
+            }
+            else {
+                $ret_str = null;
             }
         }
     }

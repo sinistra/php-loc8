@@ -27,7 +27,6 @@
     <link rel="stylesheet" href="{{ URL::asset('css/jqtree.css') }}"/>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
 
-
     <style>
         html, body {
             height: 100%;
@@ -711,7 +710,6 @@
             loc_str = $('#suggest_input').getItemData(0).loc;
             $('#suggest_input').val(loc_str).trigger('change');
             $('#suggest_input').blur();
-            zoom_type = 'zoom';
         }
         else {
             geo_loc = $('#suggest_input').getSelectedItemData().geo;
